@@ -3,7 +3,7 @@
 First, make sure that you have Pulp and Bower installed.  Using Yarn:
 
 ```
-yarn global add pulp bower
+yarn global add purescript pulp bower
 ```
 
 then, get your dependencies installed from Bower
