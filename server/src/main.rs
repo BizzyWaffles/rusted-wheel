@@ -3,50 +3,45 @@ extern crate router;
 extern crate mount;
 extern crate staticfile;
 
-use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc,Mutex};
 
 use iron::prelude::*;
-use iron::{Handler};
 use iron::status;
 
 use mount::Mount;
 use staticfile::Static;
 
-struct Api(f32);
-
-impl Api {
-    fn version(&self) -> f32 {
-        self.0
-    }
-}
-
 fn main() {
-
-    Iron::new(|req: &mut Request| {
-        let api = Api (0.1);
-
-        let hck = |_: &mut Request| -> IronResult<Response> {
-            Ok(Response::with((status::Ok, format!("{}", api.version()))))
-        };
-
-        // NOTE: explicitly version the api
-        let path = &req.url.path();
-        let version = path[0];
-        if version != api.version().to_string() {
-            panic!("API version mismatch! This API version: {}", api.version());
-        }
-
-        println!("{:?}", path);
-        println!("{:?}", req);
-        println!("{}", req.version);
-        println!("{:?}", req.headers);
-        println!("{:?}", req.method);
-        // println!("{}", req.body);
-        Ok(Response::with((status::Ok, "Hello, world!")))
-    }).http("localhost:3000").unwrap();
+    let connections = Arc::new(Mutex::new(0u32));
 
     let mut router = router::Router::new();
+
+    {
+        let conn = connections.clone();
+        let game_connect = move |_: &mut Request| -> IronResult<Response> {
+            let mut count = conn.lock().unwrap();
+
+            *count += 1;
+
+            Ok(Response::with((status::Ok, format!("{}", *count))))
+        };
+        router.get("/connect", game_connect, "connect");
+    }
+
+    {
+        let conn = connections.clone();
+        let game_disconnect = move |_: &mut Request| -> IronResult<Response> {
+            let mut count = conn.lock().unwrap();
+
+            if *count != 0 {
+                *count -= 1;
+            }
+
+            Ok(Response::with((status::Ok, format!("{}", *count))))
+        };
+        router.get("/disconnect", game_disconnect, "disconnect");
+    }
 
     let mut assets_mount = Mount::new();
     assets_mount
@@ -54,12 +49,6 @@ fn main() {
         .mount("/client", Static::new(Path::new("../client")));
 
     Iron::new(assets_mount).http("localhost:3000").unwrap();
-
-}
-
-// NOTE: a "'static" lifetime means that this refence is used statically when borrowed
-fn string_to_print() -> &'static str {
-    "Hello, world!"
 }
 
 #[cfg(test)]
@@ -68,7 +57,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn string_to_print_is_correct() {
-        assert_eq!(string_to_print(), "Hello, world!");
+    fn it_works() {
+        // TODO: write a test
     }
 }
