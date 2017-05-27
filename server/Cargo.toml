@@ -1,0 +1,8 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["fluffywaffles <skorlir@gmail.com>", "TheBizzle <jason.bertsche@gmail.com"]
+
+[dependencies]
+[dependencies.iron]
+version = "*"
