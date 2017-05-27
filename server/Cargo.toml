@@ -4,5 +4,15 @@ version = "0.1.0"
 authors = ["fluffywaffles <skorlir@gmail.com>", "TheBizzle <jason.bertsche@gmail.com"]
 
 [dependencies]
+
 [dependencies.iron]
+version = "*"
+
+[dependencies.mount]
+git = "https://github.com/iron/mount.git"
+
+[dependencies.staticfile]
+version = "*"
+
+[dependencies.router]
 version = "*"
