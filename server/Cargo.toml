@@ -16,3 +16,7 @@ version = "*"
 
 [dependencies.router]
 version = "*"
+
+[dependencies.uuid]
+version = "0.5"
+features = ["v4"]
