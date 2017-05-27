@@ -15,10 +15,10 @@ import Pux.DOM.Events (onClick)
 import Pux.DOM.HTML (HTML)
 import Pux.Renderer.React (renderToDOM)
 
-import Text.Smolder.HTML (button, div, span)
+import Text.Smolder.HTML (br, button, div, span)
 import Text.Smolder.Markup (text, (#!))
 
-data Event = Increment | Decrement
+data Event = Increment | Decrement | NoOp
 
 type State = Int
 
@@ -26,14 +26,15 @@ type State = Int
 foldp :: forall fx. Event -> State -> EffModel State Event fx
 foldp Increment n = { state: n + 1, effects: [] }
 foldp Decrement n = { state: n - 1, effects: [] }
+foldp NoOp      n = { state: n    , effects: [] }
 
 -- | Return markup from the state
 view :: State -> HTML Event
 view count =
   div do
-    button #! onClick (const Increment) $ text "Increment"
-    span $ text (show count)
-    button #! onClick (const Decrement) $ text "Decrement"
+    button #! onClick (const NoOp) $ text "Hired Hands"
+    button #! onClick (const NoOp) $ text "Change displayed items"
+    button #! onClick (const NoOp) $ text "Open shop for the day"
 
 -- | Start and render the app
 main :: forall fx. Eff (canvas :: CANVAS | CoreEffects fx) Unit
