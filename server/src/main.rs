@@ -3,12 +3,30 @@ extern crate iron;
 use iron::prelude::*;
 use iron::status;
 
-fn hck(_: &mut Request) -> IronResult<Response> {
-    Ok(Response::with((status::Ok, "")))
+struct Api(f32);
+
+impl Api {
+    fn version(&self) -> f32 {
+        self.0
+    }
 }
 
 fn main() {
     Iron::new(|req: &mut Request| {
+        let api = Api (0.1);
+
+        let hck = |_: &mut Request| -> IronResult<Response> {
+            Ok(Response::with((status::Ok, format!("{}", api.version()))))
+        };
+
+        // NOTE: explicitly version the api
+        let path = &req.url.path();
+        let version = path[0];
+        if version != api.version().to_string() {
+            panic!("API version mismatch! This API version: {}", api.version());
+        }
+
+        println!("{:?}", path);
         println!("{:?}", req);
         println!("{}", req.version);
         println!("{:?}", req.headers);
