@@ -1,0 +1,22 @@
+# common directory names
+classes/
+target/
+tmp/
+build/
+output/
+
+# common filenames
+.DS_Store
+npm-debug.log
+
+# wildcards
+*.tmp
+*.swp
+*.iml
+*~
+.#*
+\#*
+
+# other
+/.projections.json
+/client/bower_components/
