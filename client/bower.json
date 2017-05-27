@@ -13,5 +13,6 @@
   "dependencies": {
     "purescript-console": "3.0.0"
   , "purescript-pux": "9.2.0"
+  , "react":              "^15.5.0"
   }
 }
