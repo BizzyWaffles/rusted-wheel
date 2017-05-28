@@ -1,12 +1,20 @@
 module Main where
 
-import Prelude ((+), (-), ($), bind, const, discard, pure, show, unit, Unit)
+import Prelude ((+), (-), ($), (<>), bind, const, discard, pure, show, unit, Unit)
 
+import Control.Monad.Aff (Canceler, launchAff)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Exception (EXCEPTION)
 
+import Data.Foreign (Foreign)
 import Data.Maybe (Maybe(Just))
 
 import Graphics.Canvas (CANVAS, getCanvasElementById, getContext2D, setFillStyle, fillPath, rect)
+
+import Network.HTTP.Affjax (affjax, Affjax, AJAX, defaultRequest, get)
+import Network.HTTP.Affjax.Response (class Respondable)
 
 import Partial.Unsafe (unsafePartial)
 
@@ -20,27 +28,33 @@ import Text.Smolder.Markup (text, (#!))
 
 data Event = Increment | Decrement | NoOp
 
-type State = Int
+type State = String
 
--- | Return a new state (and effects) from each event
 foldp :: forall fx. Event -> State -> EffModel State Event fx
-foldp Increment n = { state: n + 1, effects: [] }
-foldp Decrement n = { state: n - 1, effects: [] }
-foldp NoOp      n = { state: n    , effects: [] }
+foldp Increment n = { state: n <> "!", effects: [] }
+foldp Decrement n = { state: n <> "?", effects: [] }
+foldp NoOp      n = { state: n       , effects: [] }
 
--- | Return markup from the state
 view :: State -> HTML Event
 view count =
   div do
     button #! onClick (const NoOp) $ text "Hired Hands"
     button #! onClick (const NoOp) $ text "Change displayed items"
     button #! onClick (const NoOp) $ text "Open shop for the day"
+    span $ text (show count)
 
--- | Start and render the app
-main :: forall fx. Eff (canvas :: CANVAS | CoreEffects fx) Unit
-main = unsafePartial do
+getToken = launchAff $ do
+  res <- get "/connect"
+  liftEff $ continueBooting $ "" <> res.response
+
+continueBooting token = do
+  launchPux token
+  _ <- initCanvas
+  pure unit
+
+launchPux initialState = do
   app <- start
-    { initialState: 0
+    { initialState
     , view
     , foldp
     , inputs: []
@@ -48,9 +62,10 @@ main = unsafePartial do
 
   renderToDOM "#app" app.markup app.input
 
+initCanvas = unsafePartial do
   Just canvas <- getCanvasElementById "canvas"
   ctx         <- getContext2D canvas
   _           <- setFillStyle "#0000FF" ctx
-  _           <- fillPath ctx $ rect ctx { x: 250.0, y: 250.0, w: 100.0, h: 100.0 }
+  fillPath ctx $ rect ctx { x: 250.0, y: 250.0, w: 100.0, h: 100.0 }
 
-  pure unit
+main = getToken
