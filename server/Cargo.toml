@@ -20,3 +20,6 @@ version = "*"
 [dependencies.uuid]
 version = "0.5"
 features = ["v4"]
+
+[dependencies.time]
+version = "*"

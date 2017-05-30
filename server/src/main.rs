@@ -3,6 +3,7 @@ extern crate router;
 extern crate mount;
 extern crate staticfile;
 extern crate uuid;
+extern crate time;
 
 use std::io::Read;
 use std::path::Path;
@@ -34,7 +35,7 @@ fn main() {
             let new_uuid = Uuid::new_v4();
             let new_conn = Connection { uuid: new_uuid };
             conn_map.insert(new_conn.uuid, new_conn);
-            println!("new user w uuid {} connected", new_uuid);
+            println!("connect: new user with uuid {}", new_uuid);
             println!("{} connected users", conn_map.len());
 
             Ok(Response::with((status::Ok, format!("{}", new_uuid))))
@@ -52,9 +53,8 @@ fn main() {
             // result which must be used"
             let _ = req.body.read_to_string(&mut req_body);
             let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
-            let dropped_conn = conn_map.remove(&req_uuid);
 
-            match dropped_conn {
+            match conn_map.remove(&req_uuid) {
                 Some(dropped_conn) => {
                     println!("disconnect: user with uuid {}", dropped_conn.uuid);
                     println!("{} connected users", conn_map.len());
@@ -72,6 +72,35 @@ fn main() {
             }
         };
         router.post("/disconnect", game_disconnect, "disconnect");
+    }
+
+    {
+        let connections = connections.clone();
+        let game_ping = move |req: &mut Request| -> IronResult<Response> {
+            let conn_map = connections.lock().unwrap();
+
+            let mut req_body = String::new();
+            let _ = req.body.read_to_string(&mut req_body);
+            let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
+
+            match conn_map.get(&req_uuid) {
+                Some(conn) => {
+                    println!("ping[{}]: user with uuid {} sent ping",
+                             time::precise_time_ns(),
+                             conn.uuid);
+                    Ok(Response::with((status::Ok, "pong")))
+                },
+                None => {
+                    println!("error: ping: nonexistent user {} tried to ping", req_uuid);
+                    Ok(Response::with((status::NotFound, "")))
+                },
+            }
+        };
+        let game_ping_ref = Arc::new(game_ping);
+        let game_ping_1 = game_ping_ref.clone();
+        router.post("/ping", move |req: &mut Request| game_ping_1(req), "ping:ping");
+        let game_ping_2 = game_ping_ref.clone();
+        router.post("/keep-alive", move |req: &mut Request| game_ping_2(req), "ping:keep-alive");
     }
 
     let mut assets_mount = Mount::new();
