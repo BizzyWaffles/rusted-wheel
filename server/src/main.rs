@@ -22,6 +22,14 @@ pub struct Connection {
     uuid: Uuid
 }
 
+fn respond(status: status::Status, msg: &str) -> Response {
+    Response::with((status, msg))
+}
+
+fn respond_ok(msg: &str) -> Response {
+    respond(status::Ok, msg)
+}
+
 fn main() {
     let connections = Arc::new(Mutex::new(HashMap::new()));
 
@@ -38,7 +46,7 @@ fn main() {
             println!("connect: new user with uuid {}", new_uuid);
             println!("{} connected users", conn_map.len());
 
-            Ok(Response::with((status::Ok, format!("{}", new_uuid))))
+            Ok(respond_ok(&format!("{}", new_uuid)))
         };
         router.get("/connect", game_connect, "connect");
     }
@@ -58,15 +66,12 @@ fn main() {
                 Some(dropped_conn) => {
                     println!("disconnect: user with uuid {}", dropped_conn.uuid);
                     println!("{} connected users", conn_map.len());
-                    Ok(Response::with((status::Ok, "dropped")))
+                    Ok(respond_ok("dropped"))
                 },
                 None => {
                     println!("error: disconnect: tried to drop unconnected user {}", req_uuid);
                     Ok(
-                        Response::with((
-                            status::Conflict,
-                            "error: cannot drop a user who is not connected"
-                        ))
+                        respond(status::Conflict, "error: cannot drop a user who is not connected")
                     )
                 },
             }
@@ -88,11 +93,11 @@ fn main() {
                     println!("ping[{}]: user with uuid {} sent ping",
                              time::precise_time_ns(),
                              conn.uuid);
-                    Ok(Response::with((status::Ok, "pong")))
+                    Ok(respond_ok("pong"))
                 },
                 None => {
                     println!("error: ping: nonexistent user {} tried to ping", req_uuid);
-                    Ok(Response::with((status::NotFound, "")))
+                    Ok(respond(status::NotFound, ""))
                 },
             }
         };
