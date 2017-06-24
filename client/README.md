@@ -27,7 +27,7 @@ pulp build --to output/main.js
 or, for continuous builds:
 
 ```
-pulp build --watch --to output/main.js
+pulp --watch build --to output/main.js
 ```
 
 Then, if you open up `html/index.html` in your browser, your should have the page.
