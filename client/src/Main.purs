@@ -5,16 +5,14 @@ import Prelude ((+), (-), ($), (<>), bind, const, discard, pure, show, unit, Uni
 import Control.Monad.Aff (Canceler, launchAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION)
 
-import Data.Foreign (Foreign)
 import Data.Maybe (Maybe(Just))
 
-import Graphics.Canvas (CANVAS, getCanvasElementById, getContext2D, setFillStyle, fillPath, rect)
+import Graphics.Canvas (CANVAS, Context2D, getCanvasElementById, getContext2D, setFillStyle, fillPath, rect)
 
-import Network.HTTP.Affjax (affjax, Affjax, AJAX, defaultRequest, get, post)
-import Network.HTTP.Affjax.Response (class Respondable)
+import Network.HTTP.Affjax (Affjax, AJAX, get, post)
 
 import Partial.Unsafe (unsafePartial)
 
@@ -23,7 +21,7 @@ import Pux.DOM.Events (onClick)
 import Pux.DOM.HTML (HTML)
 import Pux.Renderer.React (renderToDOM)
 
-import Text.Smolder.HTML (br, button, div, span, h1)
+import Text.Smolder.HTML (button, div, h1)
 import Text.Smolder.Markup (text, (#!))
 
 data Event = Increment | Decrement | NoOp
@@ -43,21 +41,24 @@ view token =
     button #! onClick (const NoOp) $ text "Open shop for the day"
     h1 $ text token
 
+getToken :: Eff _ (Canceler _)
 getToken = launchAff $ do
   res <- get "/connect"
   liftEff $ continueBooting $ "" <> res.response
 
+postPing :: String -> Eff _ (Canceler _)
 postPing token = launchAff $ do
   res <- post "/ping" token
   liftEff $ log $ "POST /ping response: " <> res.response
 
+continueBooting :: forall eff. String -> Eff _ Unit
 continueBooting token = do
   _ <- postPing token
-
   launchPux token
   _ <- initCanvas
   pure unit
 
+launchPux :: forall eff. State -> Eff (CoreEffects eff) Unit
 launchPux initialState = do
   app <- start
     { initialState
@@ -65,13 +66,14 @@ launchPux initialState = do
     , foldp
     , inputs: []
     }
-
   renderToDOM "#app" app.markup app.input
 
+initCanvas :: forall eff. Eff (canvas :: CANVAS | eff) Context2D
 initCanvas = unsafePartial do
   Just canvas <- getCanvasElementById "canvas"
   ctx         <- getContext2D canvas
   _           <- setFillStyle "#0000FF" ctx
   fillPath ctx $ rect ctx { x: 250.0, y: 250.0, w: 100.0, h: 100.0 }
 
+main :: Eff _ (Canceler _)
 main = getToken
