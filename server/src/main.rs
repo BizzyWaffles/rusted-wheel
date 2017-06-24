@@ -82,30 +82,34 @@ fn main() {
     {
         let connections = connections.clone();
         let game_ping = move |req: &mut Request| -> IronResult<Response> {
-            let conn_map = connections.lock().unwrap();
+            if let Ok(conn_map) = connections.lock() {
+                let mut req_body = String::new();
+                let _ = req.body.read_to_string(&mut req_body);
+                let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
 
-            let mut req_body = String::new();
-            let _ = req.body.read_to_string(&mut req_body);
-            let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
-
-            match conn_map.get(&req_uuid) {
-                Some(conn) => {
-                    println!("ping[{}]: user with uuid {} sent ping",
-                             time::precise_time_ns(),
-                             conn.uuid);
-                    Ok(respond_ok("pong"))
-                },
-                None => {
-                    println!("error: ping: nonexistent user {} tried to ping", req_uuid);
-                    Ok(respond(status::NotFound, ""))
-                },
+                match conn_map.get(&req_uuid) {
+                    Some(conn) => {
+                        println!("ping[{}]: user with uuid {} sent ping",
+                                 time::precise_time_ns(),
+                                 conn.uuid);
+                        Ok(respond_ok("pong"))
+                    },
+                    None => {
+                        println!("error: ping: nonexistent user {} tried to ping", req_uuid);
+                        Ok(respond(status::NotFound, ""))
+                    },
+                }
+            } else {
+                panic!("error: ping: cannot obtain lock on connections map");
             }
         };
+
         let game_ping_ref = Arc::new(game_ping);
-        let game_ping_1 = game_ping_ref.clone();
-        router.post("/ping", move |req: &mut Request| game_ping_1(req), "ping:ping");
-        let game_ping_2 = game_ping_ref.clone();
-        router.post("/keep-alive", move |req: &mut Request| game_ping_2(req), "ping:keep-alive");
+        for endpoint in vec!["/ping", "/keep-alive"] {
+            let handle = game_ping_ref.clone();
+            let desc   = format!("ping:{}", endpoint);
+            router.post(endpoint, move |req: &mut Request| handle(req), desc);
+        }
     }
 
     let mut assets_mount = Mount::new();
