@@ -24,6 +24,8 @@ import Pux.Renderer.React (renderToDOM)
 import Text.Smolder.HTML (button, div, h1)
 import Text.Smolder.Markup (text, (#!))
 
+import Websocket as WS
+
 data Event = Increment | Decrement | NoOp
 
 type State = String
@@ -53,6 +55,7 @@ postPing token = launchAff $ do
 
 continueBooting :: forall eff. String -> Eff _ Unit
 continueBooting token = do
+  WS.init
   _ <- postPing token
   launchPux token
   _ <- initCanvas
