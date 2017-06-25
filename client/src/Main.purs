@@ -1,6 +1,6 @@
 module Main where
 
-import Prelude ((+), (-), ($), (<>), bind, const, discard, pure, show, unit, Unit)
+import Prelude
 
 import Control.Monad.Aff (Canceler, launchAff)
 import Control.Monad.Eff (Eff)
