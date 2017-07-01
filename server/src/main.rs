@@ -14,6 +14,8 @@ use uuid::Uuid;
 
 use iron::prelude::*;
 use iron::status;
+use iron::modifiers::Header;
+use iron::headers::{AccessControlAllowOrigin};
 
 use mount::Mount;
 use staticfile::Static;
@@ -23,7 +25,7 @@ pub struct Connection {
 }
 
 fn respond(status: status::Status, msg: &str) -> Response {
-    Response::with((status, msg))
+    Response::with((status, msg, Header(AccessControlAllowOrigin::Any)))
 }
 
 fn respond_ok(msg: &str) -> Response {
