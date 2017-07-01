@@ -59,10 +59,12 @@ fn main() {
             let mut conn_map = connections.lock().unwrap();
 
             let mut req_body = String::new();
-            // NOTE(jordan): Must "let _ = ..." Otherwise this gives compiler warning "unused
-            // result which must be used"
-            // FIXME(jordan): Is there error-handling we aren't doing here? Whoops... That return
-            // value probably *means* something.
+            /* NOTE(jordan): Must "let _ = ..." Otherwise this gives compiler warning "unused
+             * result which must be used"
+             */
+            /* FIXME(jordan): Is there error-handling we aren't doing here? Whoops... That return
+             * value probably *means* something.
+             */
             let _ = req.body.read_to_string(&mut req_body);
             let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
 
