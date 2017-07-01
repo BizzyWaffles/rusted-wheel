@@ -23,3 +23,6 @@ features = ["v4"]
 
 [dependencies.time]
 version = "*"
+
+[dependencies.ws]
+version = "*"
