@@ -39,7 +39,7 @@ fn main() {
 
     {
         let connections = connections.clone();
-        let game_connect = move |_: &mut Request| -> IronResult<Response> {
+        let game_connect = move |req: &mut Request| -> IronResult<Response> {
             let mut conn_map = connections.lock().unwrap();
 
             let new_uuid = Uuid::new_v4();
@@ -61,6 +61,8 @@ fn main() {
             let mut req_body = String::new();
             // NOTE(jordan): Must "let _ = ..." Otherwise this gives compiler warning "unused
             // result which must be used"
+            // FIXME(jordan): Is there error-handling we aren't doing here? Whoops... That return
+            // value probably *means* something.
             let _ = req.body.read_to_string(&mut req_body);
             let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
 
