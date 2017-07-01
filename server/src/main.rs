@@ -5,6 +5,7 @@ extern crate staticfile;
 extern crate uuid;
 extern crate time;
 
+use std::thread;
 use std::io::Read;
 use std::path::Path;
 use std::sync::{Arc,Mutex};
@@ -123,7 +124,20 @@ fn main() {
         .mount("/", router)
         .mount("/client", Static::new(Path::new("../client")));
 
-    Iron::new(assets_mount).http("localhost:3000").unwrap();
+    let webserver_thread = thread::spawn(move || {
+        Iron::new(assets_mount).http("localhost:3000").unwrap()
+    });
+
+    let websocket_thread = thread::spawn(move || {
+        loop {
+            println!("hi from websocket_thread");
+            thread::sleep(time::Duration::seconds(5).to_std().unwrap())
+        }
+    });
+
+    // NOTE(jordan): Join all these threads so that we see stdout and stderr.
+    webserver_thread.join().unwrap();
+    websocket_thread.join().unwrap();
 }
 
 #[cfg(test)]
