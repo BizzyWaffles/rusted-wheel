@@ -36,12 +36,22 @@ foldp Decrement (GameState gameState) = { state: GameState $ gameState { hourOfD
 foldp NoOp                         gs = { state: gs                                                           , effects: [] }
 
 view :: GameState -> HTML Event
-view gameState =
+view (GameState { player: Player { id: (ID identifier), inventory, name, runningTasks, loadsAMoney: (Money money), token, transactions }, goons, competitors, hourOfDay, news }) =
   div do
     button #! onClick (const NoOp) $ text "Hired Hands"
     button #! onClick (const NoOp) $ text "Change displayed items"
     button #! onClick (const NoOp) $ text "Open shop for the day"
-    h1 $ text $ gameState.player.name
+    h1 $ text $ "Player ID: "           <> show identifier
+    h1 $ text $ "Player inventory: "    <> show inventory
+    h1 $ text $ "Player name: "         <> name
+    h1 $ text $ "Player's tasks: "      <> show runningTasks
+    h1 $ text $ "Player money: "        <> show money
+    h1 $ text $ "Player transcations: " <> show transactions
+    h1 $ text $ "Token: "               <> token
+    h1 $ text $ "Goons "                <> show goons
+    h1 $ text $ "Competitors: "         <> show competitors
+    h1 $ text $ "Time of day: "         <> show hourOfDay
+    h1 $ text $ "News: "                <> show news
 
 getToken :: Eff _ (Canceler _)
 getToken = launchAff $ do
