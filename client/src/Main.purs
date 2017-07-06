@@ -55,7 +55,7 @@ postPing token = launchAff $ do
 
 continueBooting :: forall eff. String -> Eff _ Unit
 continueBooting token = do
-  WS.init
+  WS.init "10.105.144.17"
   _ <- postPing token
   launchPux token
   _ <- initCanvas

@@ -8,10 +8,10 @@ import Control.Monad.Eff.Var (($=))
 
 import WebSocket (Connection(Connection), Message(Message), URL(URL), runMessageEvent, runMessage, newWebSocket)
 
-init :: Eff _ Unit
-init = do
+init :: String -> Eff _ Unit
+init ipAddress = do
 
-  Connection socket <- newWebSocket (URL "ws://localhost:2222") []
+  Connection socket <- newWebSocket (URL $ "ws://" <> ipAddress <> ":3001") []
 
   socket.onopen $= \event -> do
     socket.send $ Message "hello"
