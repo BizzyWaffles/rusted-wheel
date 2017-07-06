@@ -1,13 +1,13 @@
 module GameState(
   AttributeSet
 , EntityKind(GoonEntity, NPCEntity, PlayerEntity)
-, GameState
+, GameState(GameState)
 , Goon
 , ID(ID)
 , Item(..)
 , Money(Money)
 , NewsItem
-, Player
+, Player(Player)
 , Rating(Rating)
 , SkillSet
 , Task
@@ -15,8 +15,11 @@ module GameState(
 , Transaction
 ) where
 
+import Data.Generic.Rep(class Generic)
+import Data.Generic.Rep.Show(genericShow)
 import Data.Maybe(Maybe)
 import Data.Set(Set)
+import Data.Show(class Show)
 import Data.Tuple(Tuple)
 
 newtype ID = ID Int
@@ -46,8 +49,8 @@ data TaskKind
   | Steal
   | Trade
 
-type Player =
-  {
+newtype Player =
+  Player {
     id           :: ID
   , inventory    :: Set Item
   , name         :: String
@@ -57,22 +60,22 @@ type Player =
   , transactions :: Array Transaction
   }
 
-type Transaction =
-  {
+newtype Transaction =
+  Transaction {
     to          :: Tuple ID EntityKind
   , from        :: Tuple ID EntityKind
   , amount      :: Money
   , description :: String
   }
 
-type NewsItem =
-  {
+newtype NewsItem =
+  NewsItem {
     id          :: ID
   , description :: String
   }
 
-type Task =
-  {
+newtype Task =
+  Task {
     id                   :: ID
   , taskType             :: TaskKind
   , effortRequired       :: Number
@@ -80,8 +83,8 @@ type Task =
   , currentEffortPerTick :: Number
   }
 
-type Goon =
-  {
+newtype Goon =
+  Goon {
     id         :: ID
   , name       :: String
   , task       :: Maybe Task
@@ -89,16 +92,16 @@ type Goon =
   , skills     :: SkillSet
   }
 
-type AttributeSet =
-  {
+newtype AttributeSet =
+  AttributeSet {
     strength   :: Rating
   , agility    :: Rating
   , charisma   :: Rating
   , perception :: Rating
   }
 
-type SkillSet =
-  {
+newtype SkillSet =
+  SkillSet {
     counterespionage :: Rating
   , scavenge         :: Rating
   , spy              :: Rating
@@ -106,11 +109,68 @@ type SkillSet =
   , trade            :: Rating
   }
 
-type GameState =
-  {
+newtype GameState =
+  GameState {
     player       :: Player
   , goons        :: Set Goon
   , competitors  :: Set Player
   , hourOfDay    :: Int
   , news         :: Array NewsItem
   }
+
+derive instance genericAttributeSet :: Generic AttributeSet _
+derive instance genericEntityKind   :: Generic EntityKind   _
+derive instance genericGameState    :: Generic GameState    _
+derive instance genericGoon         :: Generic Goon         _
+derive instance genericID           :: Generic ID           _
+derive instance genericItem         :: Generic Item         _
+derive instance genericMoney        :: Generic Money        _
+derive instance genericNewsItem     :: Generic NewsItem     _
+derive instance genericPlayer       :: Generic Player       _
+derive instance genericRating       :: Generic Rating       _
+derive instance genericSkillSet     :: Generic SkillSet     _
+derive instance genericTask         :: Generic Task         _
+derive instance genericTaskKind     :: Generic TaskKind     _
+derive instance genericTransaction  :: Generic Transaction  _
+
+instance showAttributeSet :: Show AttributeSet where
+  show = genericShow
+
+instance showEntityKind :: Show EntityKind where
+  show = genericShow
+
+instance showGameState :: Show GameState where
+  show = genericShow
+
+instance showGoon :: Show Goon where
+  show = genericShow
+
+instance showID :: Show ID where
+  show = genericShow
+
+instance showItem :: Show Item where
+  show = genericShow
+
+instance showMoney :: Show Money where
+  show = genericShow
+
+instance showNewsItem :: Show NewsItem where
+  show = genericShow
+
+instance showPlayer :: Show Player where
+  show = genericShow
+
+instance showRating :: Show Rating where
+  show = genericShow
+
+instance showSkillSet :: Show SkillSet where
+  show = genericShow
+
+instance showTask :: Show Task where
+  show = genericShow
+
+instance showTaskKind :: Show TaskKind where
+  show = genericShow
+
+instance showTransaction :: Show Transaction where
+  show = genericShow
