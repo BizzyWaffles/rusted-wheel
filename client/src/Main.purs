@@ -9,6 +9,7 @@ import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION)
 
 import Data.Maybe (Maybe(Just))
+import Data.Set as Set
 
 import Graphics.Canvas (CANVAS, Context2D, getCanvasElementById, getContext2D, setFillStyle, fillPath, rect)
 
@@ -24,24 +25,23 @@ import Pux.Renderer.React (renderToDOM)
 import Text.Smolder.HTML (button, div, h1)
 import Text.Smolder.Markup (text, (#!))
 
+import GameState(GameState, ID(ID), Money(Money))
 import Websocket as WS
 
 data Event = Increment | Decrement | NoOp
 
-type State = String
+foldp :: forall fx. Event -> GameState -> EffModel GameState Event fx
+foldp Increment gameState = { state: gameState { player { name = gameState.player.name <> "!" } }, effects: [] }
+foldp Decrement gameState = { state: gameState { player { name = gameState.player.name <> "?" } }, effects: [] }
+foldp NoOp      gameState = { state: gameState                                                   , effects: [] }
 
-foldp :: forall fx. Event -> State -> EffModel State Event fx
-foldp Increment n = { state: n <> "!", effects: [] }
-foldp Decrement n = { state: n <> "?", effects: [] }
-foldp NoOp      n = { state: n       , effects: [] }
-
-view :: State -> HTML Event
-view token =
+view :: GameState -> HTML Event
+view gameState =
   div do
     button #! onClick (const NoOp) $ text "Hired Hands"
     button #! onClick (const NoOp) $ text "Change displayed items"
     button #! onClick (const NoOp) $ text "Open shop for the day"
-    h1 $ text token
+    h1 $ text $ gameState.player.name
 
 getToken :: Eff _ (Canceler _)
 getToken = launchAff $ do
@@ -61,15 +61,20 @@ continueBooting token = do
   _ <- initCanvas
   pure unit
 
-launchPux :: forall eff. State -> Eff (CoreEffects eff) Unit
-launchPux initialState = do
+launchPux :: forall eff. String -> Eff (CoreEffects eff) Unit
+launchPux token = do
   app <- start
-    { initialState
+    { initialState: makeInitialState token
     , view
     , foldp
     , inputs: []
     }
   renderToDOM "#app" app.markup app.input
+
+makeInitialState :: String -> GameState
+makeInitialState token = { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
+  where
+    person = { id: ID 9001, inventory: Set.empty, name: "doofus", runningTasks: Set.empty, loadsAMoney: Money 0, token: token, transactions: [] }
 
 initCanvas :: forall eff. Eff (canvas :: CANVAS | eff) Context2D
 initCanvas = unsafePartial do
