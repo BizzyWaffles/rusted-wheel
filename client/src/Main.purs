@@ -25,15 +25,15 @@ import Pux.Renderer.React (renderToDOM)
 import Text.Smolder.HTML (button, div, h1)
 import Text.Smolder.Markup (text, (#!))
 
-import GameState(GameState, ID(ID), Money(Money))
+import GameState(GameState(GameState), ID(ID), Money(Money), Player(Player))
 import Websocket as WS
 
 data Event = Increment | Decrement | NoOp
 
 foldp :: forall fx. Event -> GameState -> EffModel GameState Event fx
-foldp Increment gameState = { state: gameState { player { name = gameState.player.name <> "!" } }, effects: [] }
-foldp Decrement gameState = { state: gameState { player { name = gameState.player.name <> "?" } }, effects: [] }
-foldp NoOp      gameState = { state: gameState                                                   , effects: [] }
+foldp Increment (GameState gameState) = { state: GameState $ gameState { hourOfDay = gameState.hourOfDay + 1 }, effects: [] }
+foldp Decrement (GameState gameState) = { state: GameState $ gameState { hourOfDay = gameState.hourOfDay - 1 }, effects: [] }
+foldp NoOp                         gs = { state: gs                                                           , effects: [] }
 
 view :: GameState -> HTML Event
 view gameState =
@@ -72,9 +72,9 @@ launchPux token = do
   renderToDOM "#app" app.markup app.input
 
 makeInitialState :: String -> GameState
-makeInitialState token = { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
+makeInitialState token = GameState { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
   where
-    person = { id: ID 9001, inventory: Set.empty, name: "doofus", runningTasks: Set.empty, loadsAMoney: Money 0, token: token, transactions: [] }
+    person = Player { id: ID 9001, inventory: Set.empty, name: "doofus", runningTasks: Set.empty, loadsAMoney: Money 0, token: token, transactions: [] }
 
 initCanvas :: forall eff. Eff (canvas :: CANVAS | eff) Context2D
 initCanvas = unsafePartial do
