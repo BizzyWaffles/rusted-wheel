@@ -11,6 +11,10 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Maybe (Maybe(Just))
 import Data.Set as Set
 
+import DOM.HTML(window)
+import DOM.HTML.Location(hostname)
+import DOM.HTML.Window(location)
+
 import Graphics.Canvas (CANVAS, Context2D, getCanvasElementById, getContext2D, setFillStyle, fillPath, rect)
 
 import Network.HTTP.Affjax (Affjax, AJAX, get, post)
@@ -65,7 +69,8 @@ postPing token = launchAff $ do
 
 continueBooting :: forall eff. String -> Eff _ Unit
 continueBooting token = do
-  WS.init "10.105.144.17"
+  host <- window >>= location >>= hostname
+  WS.init host
   _ <- postPing token
   launchPux token
   _ <- initCanvas

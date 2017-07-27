@@ -14,6 +14,7 @@
     "purescript-affjax":           "^4.0.0"
   , "purescript-canvas":           "^3.0.0"
   , "purescript-console":          "^3.0.0"
+  , "purescript-dom":              "^4.7.0"
   , "purescript-exceptions":       "^3.0.0"
   , "purescript-foreign":          "^4.0.0"
   , "purescript-generics-rep":     "^5.1.0"
