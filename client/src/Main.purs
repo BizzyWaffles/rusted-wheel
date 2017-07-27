@@ -22,7 +22,7 @@ import Pux.DOM.Events (onClick)
 import Pux.DOM.HTML (HTML)
 import Pux.Renderer.React (renderToDOM)
 
-import Text.Smolder.HTML (button, div, h1)
+import Text.Smolder.HTML (button, div)
 import Text.Smolder.Markup (text, (#!))
 
 import GameState(GameState(GameState), ID(ID), Money(Money), Player(Player))
@@ -41,17 +41,17 @@ view (GameState { player: Player { id: (ID identifier), inventory, name, running
     button #! onClick (const NoOp) $ text "Hired Hands"
     button #! onClick (const NoOp) $ text "Change displayed items"
     button #! onClick (const NoOp) $ text "Open shop for the day"
-    h1 $ text $ "Player ID: "           <> show identifier
-    h1 $ text $ "Player inventory: "    <> show inventory
-    h1 $ text $ "Player name: "         <> name
-    h1 $ text $ "Player's tasks: "      <> show runningTasks
-    h1 $ text $ "Player money: "        <> show money
-    h1 $ text $ "Player transcations: " <> show transactions
-    h1 $ text $ "Token: "               <> token
-    h1 $ text $ "Goons "                <> show goons
-    h1 $ text $ "Competitors: "         <> show competitors
-    h1 $ text $ "Time of day: "         <> show hourOfDay
-    h1 $ text $ "News: "                <> show news
+    div $ text $ "Player ID: "           <> show identifier
+    div $ text $ "Player inventory: "    <> show inventory
+    div $ text $ "Player name: "         <> name
+    div $ text $ "Player's tasks: "      <> show runningTasks
+    div $ text $ "Player money: "        <> show money
+    div $ text $ "Player transactions: " <> show transactions
+    div $ text $ "Token: "               <> token
+    div $ text $ "Goons "                <> show goons
+    div $ text $ "Competitors: "         <> show competitors
+    div $ text $ "Time of day: "         <> show hourOfDay
+    div $ text $ "News: "                <> show news
 
 getToken :: Eff _ (Canceler _)
 getToken = launchAff $ do
