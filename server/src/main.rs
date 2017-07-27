@@ -8,7 +8,6 @@ extern crate ws;
 
 use std::env;
 use std::thread;
-use std::io::Read;
 use std::path::Path;
 use std::sync::{Arc,Mutex};
 use std::collections::HashMap;
@@ -16,10 +15,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use iron::prelude::*;
-use iron::status;
-use iron::modifiers::Header;
-use iron::headers::{AccessControlAllowOrigin,SetCookie};
-use iron::middleware::{BeforeMiddleware};
 
 use mount::Mount;
 use staticfile::Static;
@@ -27,148 +22,58 @@ use staticfile::Static;
 #[derive(Debug, Clone, Copy)]
 pub struct Connection {
     uuid: Uuid,
-    ip: std::net::SocketAddr,
 }
 
 impl std::fmt::Display for Connection {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}⁖{}", self.uuid, self.ip)
-    }
-}
-
-fn respond(status: status::Status, msg: &str) -> Response {
-    Response::with((status, msg, Header(AccessControlAllowOrigin::Any)))
-}
-
-fn respond_ok(msg: &str) -> Response {
-    respond(status::Ok, msg)
-}
-
-struct ParseCookie { }
-
-impl BeforeMiddleware for ParseCookie {
-    fn before(&self, req: &mut Request) -> IronResult<()> {
-        // Parse some cookies
-        if let Some(cookie_header) = req.headers.get::<iron::headers::Cookie>() {
-            // println!("coooookie: {:?}", cookie_header)
-        }
-        Ok(())
-    }
-
-    fn catch(&self, _: &mut Request, err: IronError) -> IronResult<()> {
-        // TODO??? Not really sure what this is.
-        Ok(())
+        write!(f, "conn{{{}}}", self.uuid)
     }
 }
 
 fn main() {
     let connections = Arc::new(Mutex::new(HashMap::new()));
 
-    let mut router = router::Router::new();
-
-    {
-        let connections = connections.clone();
-        let game_connect = move |req: &mut Request| -> IronResult<Response> {
-            let mut conn_map = connections.lock().unwrap();
-
-            let new_uuid = Uuid::new_v4();
-            let new_conn = Connection {
-                uuid: new_uuid,
-                ip: req.remote_addr,
-            };
-            conn_map.insert(new_conn.uuid, new_conn);
-            println!("connect: new user with uuid {}", new_uuid);
-            println!("{} connected users", conn_map.len());
-
-            let resp = respond_ok(&format!("{}", new_uuid));
-            Ok(resp.set(Header(SetCookie(vec![
-                              String::from(format!("bzwf_anon_wstx={}", new_conn))
-            ]))))
-        };
-        router.get("/connect", game_connect, "connect");
-    }
-
-    {
-        let connections = connections.clone();
-        let game_disconnect = move |req: &mut Request| -> IronResult<Response> {
-            let mut conn_map = connections.lock().unwrap();
-
-            let mut req_body = String::new();
-            /* NOTE(jordan): Must "let _ = ..." Otherwise this gives compiler warning "unused
-             * result which must be used"
-             */
-            /* FIXME(jordan): Is there error-handling we aren't doing here? Whoops... That return
-             * value probably *means* something.
-             */
-            let _ = req.body.read_to_string(&mut req_body);
-            let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
-
-            match conn_map.remove(&req_uuid) {
-                Some(dropped_conn) => {
-                    println!("disconnect: user with uuid {}", dropped_conn.uuid);
-                    println!("{} connected users", conn_map.len());
-                    Ok(respond_ok("dropped"))
-                },
-                None => {
-                    println!("error: disconnect: tried to drop unconnected user {}", req_uuid);
-                    Ok(
-                        respond(status::Conflict, "error: cannot drop a user who is not connected")
-                    )
-                },
-            }
-        };
-        router.post("/disconnect", game_disconnect, "disconnect");
-    }
-
-    {
-        let connections = connections.clone();
-        let game_ping = move |req: &mut Request| -> IronResult<Response> {
-            if let Ok(conn_map) = connections.lock() {
-                let mut req_body = String::new();
-                let _ = req.body.read_to_string(&mut req_body);
-                let req_uuid = Uuid::parse_str(req_body.as_str()).unwrap();
-
-                match conn_map.get(&req_uuid) {
-                    Some(conn) => {
-                        println!("ping[{}]: user with uuid {} sent ping",
-                                 time::precise_time_ns(),
-                                 conn.uuid);
-                        Ok(respond_ok("pong"))
-                    },
-                    None => {
-                        println!("error: ping: nonexistent user {} tried to ping", req_uuid);
-                        Ok(respond(status::NotFound, ""))
-                    },
-                }
-            } else {
-                panic!("error: ping: cannot obtain lock on connections map");
-            }
-        };
-
-        let game_ping_ref = Arc::new(game_ping);
-        for endpoint in vec!["/ping", "/keep-alive"] {
-            let handle = game_ping_ref.clone();
-            let desc   = format!("ping:{}", endpoint);
-            router.post(endpoint, move |req: &mut Request| handle(req), desc);
-        }
-    }
-
-    let mut assets_mount = Mount::new();
-    assets_mount
-        .mount("/", router)
-        .mount("/client", Static::new(Path::new("../client")));
-
     struct WSServer {
         out: ws::Sender,
+        connections: Arc<Mutex<HashMap<Uuid, Connection>>>
     }
 
     impl ws::Handler for WSServer {
+        fn on_request(&mut self, req: &ws::Request) -> ws::Result<ws::Response> {
+            let mut resp = ws::Response::from_request(req).unwrap();
+
+            let mut conn_map = self.connections.lock().unwrap();
+
+            println!("ws:req[{}]", time::precise_time_ns());
+
+            let new_uuid = Uuid::new_v4();
+            let new_conn = Connection {
+                uuid: new_uuid
+            };
+            conn_map.insert(new_conn.uuid, new_conn);
+            println!("wsconnect: new user with uuid {}", new_uuid);
+            println!("{} connected users", conn_map.len());
+
+            println!("wsconnect: putting cookie: bzwf_anon_wstx={}", new_conn);
+            let new_bzwf_cookie_str = format!("bzwf_anon_wstx={}", new_conn);
+            {
+                let headers = resp.headers_mut();
+                headers.push((
+                    String::from("Set-Cookie"),
+                    new_bzwf_cookie_str.as_bytes().to_vec()
+                ));
+            }
+
+            Ok(resp)
+        }
+
         fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
             // TODO
             println!("ws:rcv[{}]: user with uuid {} sent ws msg {}",
                      time::precise_time_ns(),
                      "[[[ we don't have uuids in ws yet ]]]",
                      msg);
+            self.out.send("I hear you loud and clear").unwrap();
             Ok(())
         }
 
@@ -201,20 +106,24 @@ fn main() {
     {
         let domain : String;
 
-        match env::var("ADDR") {
+        match env::var("DOMAIN") {
             Ok(val) => domain = val,
             Err(_)  => {
-                println!("Environment error! ADDR not found; using localhost for default.");
+                println!("DOMAIN not found; using localhost for default.");
                 domain = String::from("localhost")
             }
         }
 
-        // FIXME(jordan): Printing that servers are running before they fail or succeed...
         let web_domain = domain.clone();
         let webserver_thread = thread::spawn(move || {
             let web_addr = format!("{}:3000", web_domain);
             println!("TCP Web server listening on {}", web_addr);
             println!("\tGo to: http://{}/client/html", web_addr);
+
+            let mut assets_mount = Mount::new();
+            assets_mount
+                .mount("/client", Static::new(Path::new("../client")));
+
             Iron::new(assets_mount).http(web_addr.clone()).unwrap()
         });
 
@@ -222,7 +131,10 @@ fn main() {
         let websocket_thread = thread::spawn(move || {
             let ws_addr = format!("{}:3001", ws_domain);
             println!("WS WebSockets server listening on {}", ws_addr);
-            ws::listen(ws_addr.clone(), |out| WSServer { out: out }).unwrap()
+            ws::listen(ws_addr.clone(), |out| WSServer {
+                out: out,
+                connections: connections.clone()
+            }).unwrap();
         });
 
         webserver_thread.join().unwrap();
