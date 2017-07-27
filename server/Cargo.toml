@@ -26,3 +26,4 @@ version = "*"
 
 [dependencies.ws]
 version = "*"
+features = [ "ssl" ]

@@ -6,6 +6,7 @@ extern crate uuid;
 extern crate time;
 extern crate ws;
 
+use std::env;
 use std::thread;
 use std::io::Read;
 use std::path::Path;
@@ -17,13 +18,22 @@ use uuid::Uuid;
 use iron::prelude::*;
 use iron::status;
 use iron::modifiers::Header;
-use iron::headers::{AccessControlAllowOrigin};
+use iron::headers::{AccessControlAllowOrigin,SetCookie,Cookie,CookieJar};
+use iron::middleware::{BeforeMiddleware};
 
 use mount::Mount;
 use staticfile::Static;
 
+#[derive(Debug, Clone, Copy)]
 pub struct Connection {
-    uuid: Uuid
+    uuid: Uuid,
+    ip: std::net::SocketAddr,
+}
+
+impl std::fmt::Display for Connection {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}⁖{}", self.uuid, self.ip)
+    }
 }
 
 fn respond(status: status::Status, msg: &str) -> Response {
@@ -32,6 +42,25 @@ fn respond(status: status::Status, msg: &str) -> Response {
 
 fn respond_ok(msg: &str) -> Response {
     respond(status::Ok, msg)
+}
+
+struct ParseCookie { }
+
+impl BeforeMiddleware for ParseCookie {
+    fn before(&self, req: &mut Request) -> IronResult<()> {
+        // Parse some cookies
+        if let Some(cookie_header) = req.headers.get::<iron::headers::Cookie>() {
+            cookie_header.to_cookie_jar();
+            for cookie in cookie_header.iter() {
+            }
+        }
+        Ok(())
+    }
+
+    fn catch(&self, _: &mut Request, err: IronError) -> IronResult<()> {
+        // TODO??? Not really sure what this is.
+        Ok(())
+    }
 }
 
 fn main() {
@@ -45,12 +74,18 @@ fn main() {
             let mut conn_map = connections.lock().unwrap();
 
             let new_uuid = Uuid::new_v4();
-            let new_conn = Connection { uuid: new_uuid };
+            let new_conn = Connection {
+                uuid: new_uuid,
+                ip: req.remote_addr,
+            };
             conn_map.insert(new_conn.uuid, new_conn);
             println!("connect: new user with uuid {}", new_uuid);
             println!("{} connected users", conn_map.len());
 
-            Ok(respond_ok(&format!("{}", new_uuid)))
+            let resp = respond_ok(&format!("{}", new_uuid));
+            Ok(resp.set(Header(SetCookie(vec![
+                              String::from(format!("bzwf_anon_wstx={}", new_conn))
+            ]))))
         };
         router.get("/connect", game_connect, "connect");
     }
@@ -125,57 +160,76 @@ fn main() {
         .mount("/", router)
         .mount("/client", Static::new(Path::new("../client")));
 
-    let webserver_thread = thread::spawn(move || {
-        Iron::new(assets_mount).http("10.105.144.17:3000").unwrap()
-    });
+    struct WSServer {
+        out: ws::Sender,
+    }
 
-    let websocket_thread = thread::spawn(move || {
-        struct Server {
-            out: ws::Sender,
+    impl ws::Handler for WSServer {
+        fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
+            // TODO
+            println!("ws:rcv[{}]: user with uuid {} sent ws msg {}",
+                     time::precise_time_ns(),
+                     "[[[ we don't have uuids in ws yet ]]]",
+                     msg);
+            Ok(())
         }
 
-        impl ws::Handler for Server {
-            fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-                // TODO
-                println!("ws:rcv[{}]: user with uuid {} sent ws msg {}",
-                         time::precise_time_ns(),
-                         "[[[ we don't have uuids in ws yet ]]]",
-                         msg);
-                Ok(())
-            }
+        fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
+            // TODO
+            println!("ws:opn[{}]: user with uuid {} opened ws cxn",
+                     time::precise_time_ns(),
+                     "[[[ we don't have uuids in ws yet ]]]");
+            Ok(())
+        }
 
-            fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
-                // TODO
-                println!("ws:opn[{}]: user with uuid {} opened ws cxn",
-                         time::precise_time_ns(),
-                         "[[[ we don't have uuids in ws yet ]]]");
-                Ok(())
-            }
+        fn on_close(&mut self, code: ws::CloseCode, reason: &str) {
+            println!("ws:cls[{}]: user with uuid {} closed ws cxn\n\tCode [{:?}] reason: {}",
+                     time::precise_time_ns(),
+                     "[[[ we don't have uuids in ws yet ]]]",
+                     code,
+                     reason);
+            // TODO
+        }
 
-            fn on_close(&mut self, code: ws::CloseCode, reason: &str) {
-                println!("ws:cls[{}]: user with uuid {} closed ws cxn\n\tCode [{:?}] reason: {}",
-                         time::precise_time_ns(),
-                         "[[[ we don't have uuids in ws yet ]]]",
-                         code,
-                         reason);
-                // TODO
-            }
+        fn on_error(&mut self, err: ws::Error) {
+            println!("ws:err[{}]: user with uuid {} got error {}",
+                     time::precise_time_ns(),
+                     "[[[ we don't have uuids in ws yet ]]]",
+                     err);
+            // TODO
+        }
+    }
 
-            fn on_error(&mut self, err: ws::Error) {
-                println!("ws:err[{}]: user with uuid {} got error {}",
-                         time::precise_time_ns(),
-                         "[[[ we don't have uuids in ws yet ]]]",
-                         err);
-                // TODO
+    {
+        let domain : String;
+
+        match env::var("ADDR") {
+            Ok(val) => domain = val,
+            Err(_)  => {
+                println!("Environment error! ADDR not found; using localhost for default.");
+                domain = String::from("localhost")
             }
         }
 
-        ws::listen("10.105.144.17:3001", |out| Server { out: out }).unwrap()
-    });
+        // FIXME(jordan): Printing that servers are running before they fail or succeed...
+        let web_domain = domain.clone();
+        let webserver_thread = thread::spawn(move || {
+            let web_addr = format!("{}:3000", web_domain);
+            println!("TCP Web server listening on {}", web_addr);
+            println!("\tGo to: http://{}/client/html", web_addr);
+            Iron::new(assets_mount).http(web_addr.clone()).unwrap()
+        });
 
-    // NOTE(jordan): Join all these threads so that we see stdout and stderr.
-    webserver_thread.join().unwrap();
-    websocket_thread.join().unwrap();
+        let ws_domain = domain.clone();
+        let websocket_thread = thread::spawn(move || {
+            let ws_addr = format!("{}:3001", ws_domain);
+            println!("WS WebSockets server listening on {}", ws_addr);
+            ws::listen(ws_addr.clone(), |out| WSServer { out: out }).unwrap()
+        });
+
+        webserver_thread.join().unwrap();
+        websocket_thread.join().unwrap();
+    }
 }
 
 #[cfg(test)]
