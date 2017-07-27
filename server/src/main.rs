@@ -18,7 +18,7 @@ use uuid::Uuid;
 use iron::prelude::*;
 use iron::status;
 use iron::modifiers::Header;
-use iron::headers::{AccessControlAllowOrigin,SetCookie,Cookie,CookieJar};
+use iron::headers::{AccessControlAllowOrigin,SetCookie};
 use iron::middleware::{BeforeMiddleware};
 
 use mount::Mount;
@@ -50,9 +50,7 @@ impl BeforeMiddleware for ParseCookie {
     fn before(&self, req: &mut Request) -> IronResult<()> {
         // Parse some cookies
         if let Some(cookie_header) = req.headers.get::<iron::headers::Cookie>() {
-            cookie_header.to_cookie_jar();
-            for cookie in cookie_header.iter() {
-            }
+            // println!("coooookie: {:?}", cookie_header)
         }
         Ok(())
     }
