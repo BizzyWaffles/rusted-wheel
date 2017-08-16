@@ -13,22 +13,27 @@ use std::env;
 use std::thread;
 
 fn main() {
-    let domain : String = match env::var("DOMAIN") {
-        Ok(val) => val,
-        Err(_)  => {
-            println!("* DOMAIN not set; using localhost.");
-            String::from("localhost")
-        }
-    };
+    let domain : String = env::var("DOMAIN").unwrap_or_else(|_err| {
+        println!("* DOMAIN not set; using localhost.");
+        String::from("localhost")
+    });
+
+    let port : i32 = env::var("PORT")
+        .map(|p| p.parse::<i32>().unwrap())
+        .unwrap_or_else(|_err| {
+            println!("* PORT not set; using 3000.");
+            3000
+        });
 
     let tcp_thread_handle = {
         let domain = domain.clone();
-        thread::spawn(|| { web::server(domain) })
+        thread::spawn(move || { web::server(domain, port) })
     };
 
     let ws_thread_handle = {
         let domain = domain.clone();
-        thread::spawn(|| { sock::server(domain) })
+        let port   = port + 1;
+        thread::spawn(move || { sock::server(domain, port) })
     };
 
     tcp_thread_handle.join().unwrap();

@@ -3,8 +3,8 @@ use std::path::Path;
 use iron::prelude::*;
 use staticfile::Static;
 
-pub fn server (domain: String) -> () {
-    let addr = format!("{}:3000", domain);
+pub fn server (domain: String, port: i32) -> () {
+    let addr = format!("{}:{}", domain, port);
     println!("TCP server listening on {}", addr);
     println!("Go to http://{}/client/html", addr);
 
