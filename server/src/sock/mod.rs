@@ -31,6 +31,24 @@ impl ws::Handler for WSServer {
 
         println!("ws:req[{}]", time::precise_time_ns());
 
+        if let Some(cookies_bytes) = req.header("cookie") {
+            println!("cookies?");
+            if let Ok(cookies) = String::from_utf8(cookies_bytes.to_vec()) {
+                println!("coooookies");
+                // NOTE(jordan): reverse in order to sort by recency
+                for cookie_pair_str in cookies.rsplit(";") {
+                    let mut cookie_pair = cookie_pair_str.split("=");
+                    match (cookie_pair.next(), cookie_pair.next()) {
+                        (Some(cookie_name), Some(cookie_value)) => {
+                            println!("cookie {} says {}", cookie_name, cookie_value);
+                        },
+                        (None, _) => println!("bad cookie?"),
+                        (_, None) => println!("bad cookie?")
+                    }
+                }
+            };
+        };
+
         let new_uuid = Uuid::new_v4();
         let new_conn = Connection {
             uuid: new_uuid
