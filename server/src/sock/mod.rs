@@ -31,23 +31,20 @@ impl ws::Handler for WSServer {
 
         println!("ws:req[{}]", time::precise_time_ns());
 
-        if let Some(cookies_bytes) = req.header("cookie") {
-            println!("cookies?");
-            if let Ok(cookies) = String::from_utf8(cookies_bytes.to_vec()) {
-                println!("coooookies");
-                // NOTE(jordan): reverse in order to sort by recency
-                for cookie_pair_str in cookies.rsplit(";") {
-                    let mut cookie_pair = cookie_pair_str.split("=");
-                    match (cookie_pair.next(), cookie_pair.next()) {
-                        (Some(cookie_name), Some(cookie_value)) => {
-                            println!("cookie {} says {}", cookie_name, cookie_value);
-                        },
-                        (None, _) => println!("bad cookie?"),
-                        (_, None) => println!("bad cookie?")
-                    }
-                }
-            };
-        };
+        // NOTE(jordan): cookie parser
+        let cookies_string = req.header("cookie")
+            .and_then(|cookies_bytes| String::from_utf8(cookies_bytes.to_vec()).ok())
+            .unwrap_or(String::from(""));
+        // NOTE(jordan): split into cookie strings sorted by recency (hence rsplit)
+        let cookies : HashMap<&str, &str> = cookies_string
+            .rsplit(";")
+            .map(|cookie_string| {
+                let mut cookie_split = cookie_string.split("=");
+                (cookie_split.next().unwrap(), cookie_split.next().unwrap())
+            })
+            .collect();
+
+        println!("bzwf_anon_wstx = {}", cookies.get("bzwf_anon_wstx").unwrap_or(&"(nerp no dice)"));
 
         let new_uuid = Uuid::new_v4();
         let new_conn = Connection {
