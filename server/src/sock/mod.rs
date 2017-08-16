@@ -103,9 +103,9 @@ impl ws::Handler for WSServer {
     }
 }
 
-pub fn server (domain: String) -> () {
+pub fn server (domain: String, port: i32) -> () {
     let connections : ConnectionMap = Arc::new(Mutex::new(HashMap::new()));
-    let addr = format!("{}:3001", domain);
+    let addr = format!("{}:{}", domain, port);
     println!("WebSockets server listening on {}", addr);
     ws::listen(addr, |out| WSServer {
         out: out,
