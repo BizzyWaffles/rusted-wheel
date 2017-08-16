@@ -109,7 +109,7 @@ fn main() {
         match env::var("DOMAIN") {
             Ok(val) => domain = val,
             Err(_)  => {
-                println!("DOMAIN not found; using localhost for default.");
+                println!("* DOMAIN not set; using localhost.");
                 domain = String::from("localhost")
             }
         }
@@ -117,7 +117,7 @@ fn main() {
         let web_domain = domain.clone();
         let webserver_thread = thread::spawn(move || {
             let web_addr = format!("{}:3000", web_domain);
-            println!("TCP Web server listening on {}", web_addr);
+            println!("TCP server listening on {}", web_addr);
             println!("\tGo to: http://{}/client/html", web_addr);
 
             let mut assets_mount = Mount::new();
@@ -130,7 +130,7 @@ fn main() {
         let ws_domain = domain.clone();
         let websocket_thread = thread::spawn(move || {
             let ws_addr = format!("{}:3001", ws_domain);
-            println!("WS WebSockets server listening on {}", ws_addr);
+            println!("WebSockets server listening on {}", ws_addr);
             ws::listen(ws_addr.clone(), |out| WSServer {
                 out: out,
                 connections: connections.clone()
