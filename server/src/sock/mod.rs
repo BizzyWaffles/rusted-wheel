@@ -110,6 +110,18 @@ struct WSServer {
     connections: ConnectionMap,
 }
 
+fn parse_message (msg: ws::Message) -> Option<(String, String)> {
+    msg.into_text()
+        .ok()
+        .and_then(|message_blob: String| {
+            let mut message_parts = message_blob.split(":");
+            match (message_parts.next(), message_parts.next()) {
+                (Some(ticket), Some(msg_type)) => Some((ticket.to_owned(), msg_type.to_owned())),
+                _ => None
+            }
+        })
+}
+
 impl ws::Handler for WSServer {
     fn on_request(&mut self, req: &ws::Request) -> ws::Result<ws::Response> {
         let mut resp = ws::Response::from_request(req).unwrap();
@@ -149,7 +161,10 @@ impl ws::Handler for WSServer {
                  time::precise_time_ns(),
                  "[[[ we don't have uuids in ws yet ]]]",
                  msg);
-        self.out.send("I hear you loud and clear").unwrap();
+        match parse_message(msg) {
+            // TODO
+            _ => self.out.send("I hear you loud and clear").unwrap()
+        };
         Ok(())
     }
 
