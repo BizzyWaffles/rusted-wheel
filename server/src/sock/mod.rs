@@ -38,9 +38,12 @@ impl ws::Handler for WSServer {
         // NOTE(jordan): split into cookie strings sorted by recency (hence rsplit)
         let cookies : HashMap<&str, &str> = cookies_string
             .rsplit(";")
-            .map(|cookie_string| {
-                let mut cookie_split = cookie_string.split("=");
-                (cookie_split.next().unwrap(), cookie_split.next().unwrap())
+            .filter_map(|cookie_string| {
+                let mut cookie_pair = cookie_string.split("=");
+                match (cookie_pair.next(), cookie_pair.next()) {
+                    (Some(name), Some(value)) => Some((name, value)),
+                    _ => None
+                }
             })
             .collect();
 
