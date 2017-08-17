@@ -1,6 +1,7 @@
 use ws;
 use std; // NOTE: in submodules, lookup path is relative to this module, so we must `use std`
 use time;
+use std::fmt;
 use uuid::Uuid;
 use std::sync::{Arc,Mutex};
 use std::collections::HashMap;
@@ -10,8 +11,8 @@ pub struct Connection {
     uuid: Uuid,
 }
 
-impl std::fmt::Display for Connection {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for Connection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "conn{{{}}}", self.uuid)
     }
 }
