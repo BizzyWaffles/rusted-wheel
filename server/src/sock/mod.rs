@@ -1,14 +1,77 @@
 use ws;
-use std; // NOTE: in submodules, lookup path is relative to this module, so we must `use std`
 use time;
 use std::fmt;
 use uuid::Uuid;
 use std::sync::{Arc,Mutex};
-use std::collections::HashMap;
+use std::collections::{HashMap,HashSet};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum Item {
+    Potatoes,
+    Berries,
+    TreeSap,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlayerState {
+    inventory: HashSet<Item>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Player {
+    AnonymousPlayer {
+        state : PlayerState,
+    },
+    RegisteredPlayer {
+        id    : i32,
+        name  : String,
+        state : PlayerState,
+    }
+}
+
+mod AnonymousPlayer {
+    use super::*;
+    pub fn new () -> Player {
+        let mut new_player_inventory = HashSet::new();
+        new_player_inventory.insert(Item::Potatoes);
+
+        Player::AnonymousPlayer {
+            state: PlayerState {
+                inventory: new_player_inventory
+            }
+        }
+    }
+}
+
+mod RegisteredPlayer {
+    use super::*;
+    pub fn new (id: i32, name: String) -> Player {
+        let mut new_player_inventory = HashSet::new();
+        new_player_inventory.insert(Item::Potatoes);
+
+        Player::RegisteredPlayer {
+            id: id,
+            name: name,
+            state: PlayerState {
+                inventory: new_player_inventory
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Connection {
-    uuid: Uuid,
+    uuid   : Uuid,
+    player : Player,
+}
+
+impl Connection {
+    fn new(u: Uuid, p: Player) -> Connection {
+        Connection {
+            uuid  : u,
+            player: p
+        }
+    }
 }
 
 impl fmt::Display for Connection {
@@ -17,7 +80,30 @@ impl fmt::Display for Connection {
     }
 }
 
-type ConnectionMap = Arc<Mutex<HashMap<Uuid,Connection>>>;
+fn parse_cookies (req: &ws::Request) -> HashMap<String, String> {
+    req.header("cookie")
+        .and_then(|cookies_bytes| String::from_utf8(cookies_bytes.to_vec()).ok())
+        .unwrap_or(String::from(""))
+        .rsplit(";")
+        .filter_map(|cookie_string| {
+            let mut cookie_pair = cookie_string.split("=");
+            match (cookie_pair.next(), cookie_pair.next()) {
+                (Some(name), Some(value)) => {
+                    Some((String::from(name.trim()), String::from(value.trim())))
+                },
+                _ => None
+            }
+        })
+        .collect()
+}
+
+fn put_cookie (name: String, value: String, resp: &mut ws::Response) {
+    let headers = resp.headers_mut();
+    let cookie_bytes = format!("{}={}", name, value).as_bytes().to_vec();
+    headers.push((String::from("Set-Cookie"), cookie_bytes));
+}
+
+type ConnectionMap = Arc<Mutex<HashMap<Uuid, Connection>>>;
 
 struct WSServer {
     out: ws::Sender,
@@ -33,39 +119,25 @@ impl ws::Handler for WSServer {
         println!("ws:req[{}]", time::precise_time_ns());
 
         // NOTE(jordan): cookie parser
-        let cookies_string = req.header("cookie")
-            .and_then(|cookies_bytes| String::from_utf8(cookies_bytes.to_vec()).ok())
-            .unwrap_or(String::from(""));
-        // NOTE(jordan): split into cookie strings sorted by recency (hence rsplit)
-        let cookies : HashMap<&str, &str> = cookies_string
-            .rsplit(";")
-            .filter_map(|cookie_string| {
-                let mut cookie_pair = cookie_string.split("=");
-                match (cookie_pair.next(), cookie_pair.next()) {
-                    (Some(name), Some(value)) => Some((name, value)),
-                    _ => None
-                }
-            })
-            .collect();
+        let cookies : HashMap<String, String> = parse_cookies(req);
 
-        println!("bzwf_anon_wstx = {}", cookies.get("bzwf_anon_wstx").unwrap_or(&"(nerp no dice)"));
+        let ticket = cookies.get("bzwf_anon_wstx")
+            .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok())
+            .unwrap_or_else(|| {
+                println!("ws:req[{}]: no bzwf_anon_wstx cookie found", time::precise_time_ns());
+                Uuid::new_v4()
+            });
 
-        let new_uuid = Uuid::new_v4();
-        let new_conn = Connection {
-            uuid: new_uuid
-        };
-        conn_map.insert(new_conn.uuid, new_conn);
-        println!("ws:req: new user with uuid {}", new_uuid);
-        println!("{} connected users", conn_map.len());
+        let users_count = conn_map.len();
 
-        println!("ws:req: putting cookie: bzwf_anon_wstx={}; ", new_conn);
-        let new_bzwf_cookie_str = format!("bzwf_anon_wstx={}; ", new_conn);
-        {
-            let headers = resp.headers_mut();
-            headers.push((
-                String::from("Set-Cookie"),
-                new_bzwf_cookie_str.as_bytes().to_vec()
-            ));
+        if conn_map.contains_key(&ticket) {
+            println!("ws:req[{}]: reconnect: uuid {}", time::precise_time_ns(), ticket);
+        } else {
+            println!("ws:req[{}]: new connection with uuid {}", time::precise_time_ns(), ticket);
+            println!("ws:req[{}]: putting cookie: bzwf_anon_wstx={}", time::precise_time_ns(), ticket);
+            println!("{} connected users", users_count + 1);
+            put_cookie(String::from("bzwf_anon_wstx"), ticket.to_string(), &mut resp);
+            conn_map.insert(ticket, Connection::new(ticket, AnonymousPlayer::new()));
         }
 
         Ok(resp)
