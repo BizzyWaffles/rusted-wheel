@@ -133,10 +133,13 @@ impl ws::Handler for WSServer {
         // NOTE(jordan): cookie parser
         let cookies : HashMap<String, String> = parse_cookies(req);
 
+        let mut cookie_existed = true;
+
         let ticket = cookies.get("bzwf_anon_wstx")
             .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok())
             .unwrap_or_else(|| {
                 println!("ws:req[{}]: no bzwf_anon_wstx cookie found", time::precise_time_ns());
+                cookie_existed = false;
                 Uuid::new_v4()
             });
 
@@ -146,7 +149,14 @@ impl ws::Handler for WSServer {
             println!("ws:req[{}]: reconnect: uuid {}", time::precise_time_ns(), ticket);
         } else {
             println!("ws:req[{}]: new connection with uuid {}", time::precise_time_ns(), ticket);
-            println!("ws:req[{}]: putting cookie: bzwf_anon_wstx={}", time::precise_time_ns(), ticket);
+
+            let cookie_op_str = if (cookie_existed) {
+                "replacing persistence cookie"
+            } else {
+                "creating persistence cookie"
+            };
+
+            println!("ws:req[{}]: {}: bzwf_anon_wstx={}", time::precise_time_ns(), cookie_op_str, ticket);
             println!("{} connected users", users_count + 1);
             put_cookie(String::from("bzwf_anon_wstx"), ticket.to_string(), &mut resp);
             conn_map.insert(ticket, Connection::new(ticket, AnonymousPlayer::new()));
