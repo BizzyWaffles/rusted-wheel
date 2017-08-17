@@ -56,7 +56,6 @@ newtype Player =
   , name         :: String
   , runningTasks :: Set Task
   , loadsAMoney  :: Money
-  , token        :: String
   , transactions :: Array Transaction
   }
 

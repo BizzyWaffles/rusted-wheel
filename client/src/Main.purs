@@ -40,7 +40,7 @@ foldp Decrement (GameState gameState) = { state: GameState $ gameState { hourOfD
 foldp NoOp                         gs = { state: gs                                                           , effects: [] }
 
 view :: GameState -> HTML Event
-view (GameState { player: Player { id: (ID identifier), inventory, name, runningTasks, loadsAMoney: (Money money), token, transactions }, goons, competitors, hourOfDay, news }) =
+view (GameState { player: Player { id: (ID identifier), inventory, name, runningTasks, loadsAMoney: (Money money), transactions }, goons, competitors, hourOfDay, news }) =
   div do
     button #! onClick (const NoOp) $ text "Hired Hands"
     button #! onClick (const NoOp) $ text "Change displayed items"
@@ -51,45 +51,15 @@ view (GameState { player: Player { id: (ID identifier), inventory, name, running
     div $ text $ "Player's tasks: "      <> show runningTasks
     div $ text $ "Player money: "        <> show money
     div $ text $ "Player transactions: " <> show transactions
-    div $ text $ "Token: "               <> token
     div $ text $ "Goons "                <> show goons
     div $ text $ "Competitors: "         <> show competitors
     div $ text $ "Time of day: "         <> show hourOfDay
     div $ text $ "News: "                <> show news
 
-getToken :: Eff _ (Canceler _)
-getToken = launchAff $ do
-  res <- get "/connect"
-  liftEff $ continueBooting $ "" <> res.response
-
-postPing :: String -> Eff _ (Canceler _)
-postPing token = launchAff $ do
-  res <- post "/ping" token
-  liftEff $ log $ "POST /ping response: " <> res.response
-
-continueBooting :: forall eff. String -> Eff _ Unit
-continueBooting token = do
-  host <- window >>= location >>= hostname
-  WS.init host
-  _ <- postPing token
-  launchPux token
-  _ <- initCanvas
-  pure unit
-
-launchPux :: forall eff. String -> Eff (CoreEffects eff) Unit
-launchPux token = do
-  app <- start
-    { initialState: makeInitialState token
-    , view
-    , foldp
-    , inputs: []
-    }
-  renderToDOM "#app" app.markup app.input
-
-makeInitialState :: String -> GameState
-makeInitialState token = GameState { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
+makeInitialState :: GameState
+makeInitialState = GameState { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
   where
-    person = Player { id: ID 9001, inventory: Set.empty, name: "doofus", runningTasks: Set.empty, loadsAMoney: Money 0, token: token, transactions: [] }
+    person = Player { id: ID 9001, inventory: Set.empty, name: "doofus", runningTasks: Set.empty, loadsAMoney: Money 0, transactions: [] }
 
 initCanvas :: forall eff. Eff (canvas :: CANVAS | eff) Context2D
 initCanvas = unsafePartial do
@@ -98,5 +68,17 @@ initCanvas = unsafePartial do
   _           <- setFillStyle "#0000FF" ctx
   fillPath ctx $ rect ctx { x: 250.0, y: 250.0, w: 100.0, h: 100.0 }
 
-main :: Eff _ (Canceler _)
-main = getToken
+main :: Eff _ Unit
+main =
+  do
+    host <- window >>= location >>= hostname
+    WS.init host
+    app <- start
+      { initialState: makeInitialState
+      , view
+      , foldp
+      , inputs: []
+      }
+    renderToDOM "#app" app.markup app.input
+    _ <- initCanvas
+    pure unit
