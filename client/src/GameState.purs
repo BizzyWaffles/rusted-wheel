@@ -8,6 +8,8 @@ module GameState(
 , Money(Money)
 , NewsItem
 , Player(Player)
+, AnonPlayer(AnonPlayer)
+, PlayerState(PlayerState)
 , Rating(Rating)
 , SkillSet
 , Task
@@ -15,6 +17,7 @@ module GameState(
 , Transaction
 ) where
 
+import Data.Either(Either)
 import Data.Generic.Rep(class Generic)
 import Data.Generic.Rep.Show(genericShow)
 import Data.Maybe(Maybe)
@@ -49,14 +52,24 @@ data TaskKind
   | Steal
   | Trade
 
-newtype Player =
-  Player {
-    id           :: ID
-  , inventory    :: Set Item
-  , name         :: String
+newtype PlayerState =
+  PlayerState {
+    inventory    :: Set Item
   , runningTasks :: Set Task
   , loadsAMoney  :: Money
   , transactions :: Array Transaction
+  }
+
+newtype Player =
+  Player {
+    id    :: ID
+  , name  :: String
+  , state :: PlayerState
+  }
+
+newtype AnonPlayer =
+  AnonPlayer {
+    anonState :: PlayerState
   }
 
 newtype Transaction =
@@ -110,7 +123,7 @@ newtype SkillSet =
 
 newtype GameState =
   GameState {
-    player       :: Player
+    player       :: Either AnonPlayer Player
   , goons        :: Set Goon
   , competitors  :: Set Player
   , hourOfDay    :: Int
@@ -126,6 +139,8 @@ derive instance genericItem         :: Generic Item         _
 derive instance genericMoney        :: Generic Money        _
 derive instance genericNewsItem     :: Generic NewsItem     _
 derive instance genericPlayer       :: Generic Player       _
+derive instance genericAnonPlayer   :: Generic AnonPlayer   _
+derive instance genericPlayerState  :: Generic PlayerState  _
 derive instance genericRating       :: Generic Rating       _
 derive instance genericSkillSet     :: Generic SkillSet     _
 derive instance genericTask         :: Generic Task         _
@@ -157,6 +172,12 @@ instance showNewsItem :: Show NewsItem where
   show = genericShow
 
 instance showPlayer :: Show Player where
+  show = genericShow
+
+instance showAnonPlayer :: Show AnonPlayer where
+  show = genericShow
+
+instance showPlayerState :: Show PlayerState where
   show = genericShow
 
 instance showRating :: Show Rating where
