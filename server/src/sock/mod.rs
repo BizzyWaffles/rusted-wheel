@@ -12,6 +12,27 @@ pub enum Item {
     TreeSap,
 }
 
+trait ParseFrom<T, Out = Self> {
+    fn parse (from: T) -> Result<Out, String>;
+}
+
+impl ParseFrom<i32> for Item {
+    fn parse (i: i32) -> Result<Self, String> {
+        match i {
+            0 => Ok(Item::Potatoes),
+            1 => Ok(Item::Berries),
+            2 => Ok(Item::TreeSap),
+            _ => Err(format!("Item.parse<i32> failure: unrecognized Item {}", i)),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Action {
+    addItemToInventory(Item),
+    default,
+}
+
 #[derive(Debug, Clone)]
 pub struct PlayerState {
     inventory: HashSet<Item>,
@@ -103,6 +124,14 @@ fn put_cookie (name: String, value: String, resp: &mut ws::Response) {
     headers.push((String::from("Set-Cookie"), cookie_bytes));
 }
 
+fn authorize_ticket_dumb (ticket: Uuid, msg_type: Vec<String>, conn_map: ConnectionMap) -> Result<Vec<String>, String> {
+   if conn_map.lock().unwrap().contains_key(&ticket) {
+        Ok(msg_type)
+   } else {
+        Err(String::from("authorize_ticket_dumb authorization failed"))
+   }
+}
+
 type ConnectionMap = Arc<Mutex<HashMap<Uuid, Connection>>>;
 
 struct WSServer {
@@ -110,15 +139,26 @@ struct WSServer {
     connections: ConnectionMap,
 }
 
-fn parse_message (msg: ws::Message) -> Option<(String, String)> {
+fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
+    fn parse_error_msg (reason: &str) -> String {
+        format!("parse_message failure: {}", reason)
+    }
+
     msg.into_text()
-        .ok()
+        .or(Err(parse_error_msg("cannot get text from Message")))
         .and_then(|message_blob: String| {
             let mut message_parts = message_blob.split(":");
-            match (message_parts.next(), message_parts.next()) {
-                (Some(ticket), Some(msg_type)) => Some((ticket.to_owned(), msg_type.to_owned())),
-                _ => None
-            }
+
+            let msg_ticket   = message_parts.next();
+            let msg_contents = message_parts.map(|p| p.to_string()).collect();
+
+            msg_ticket
+                .ok_or(parse_error_msg("no ticket"))
+                .and_then(|uuid_string| {
+                    Uuid::parse_str(uuid_string)
+                        .or(Err(parse_error_msg("ticket is invalid uuidv4")))
+                })
+                .map(|uuid| (uuid, msg_contents))
         })
 }
 
@@ -169,10 +209,39 @@ impl ws::Handler for WSServer {
                  time::precise_time_ns(),
                  "[[[ we don't have uuids in ws yet ]]]",
                  msg);
-        match parse_message(msg) {
-            // TODO
-            _ => self.out.send("I hear you loud and clear").unwrap()
-        };
+
+        parse_message(msg)
+            .and_then(|(msg_ticket, msg_contents)| {
+                println!("authorizing ticket {}", msg_ticket);
+                authorize_ticket_dumb(msg_ticket, msg_contents, self.connections.clone())
+            })
+            .and_then(|msg_contents| {
+                // FIXME possible out of bounds error
+                let ref msg_type  = msg_contents[0];
+                let ref msg_param = msg_contents[1];
+
+                println!("trying to read message contents of {}({})", msg_type, msg_param);
+
+                match (msg_type.as_str(), msg_param) {
+                    ("addItemToInventory", item) => {
+                        if let Ok(item_num) = item.parse::<i32>() {
+                            Item::parse(item_num)
+                                .map(|item| Action::addItemToInventory(item))
+                        } else {
+                            Err(String::from("parse_message failure: addItemToInventory: invalid item code"))
+                        }
+                    },
+                    _ => Err(String::from("parse_message failure: unrecognized message type"))
+                }
+            })
+            .map(|action| {
+                self.out.send(format!("gotcha, you want to {:?}", action))
+            })
+            .unwrap_or_else(|err| {
+                println!("{}", err);
+                self.out.send("got your message, but not sure what it meant")
+            });
+
         Ok(())
     }
 
