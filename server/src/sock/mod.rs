@@ -28,9 +28,9 @@ impl ParseFrom<i32> for Item {
 }
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub enum Action {
     addItemToInventory(Item),
-    default,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +39,7 @@ pub struct PlayerState {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum Player {
     AnonymousPlayer {
         state : PlayerState,
@@ -50,6 +51,7 @@ pub enum Player {
     }
 }
 
+#[allow(non_snake_case)]
 mod AnonymousPlayer {
     use super::*;
     pub fn new () -> Player {
@@ -64,6 +66,7 @@ mod AnonymousPlayer {
     }
 }
 
+#[allow(non_snake_case,dead_code)]
 mod RegisteredPlayer {
     use super::*;
     pub fn new (id: i32, name: String) -> Player {
