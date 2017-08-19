@@ -130,11 +130,9 @@ impl ws::Handler for WSServer {
 
         println!("ws:req[{}]", time::precise_time_ns());
 
-        // NOTE(jordan): cookie parser
         let cookies : HashMap<String, String> = parse_cookies(req);
 
         let mut cookie_existed = true;
-
         let ticket = cookies.get("bzwf_anon_wstx")
             .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok())
             .unwrap_or_else(|| {
@@ -147,10 +145,11 @@ impl ws::Handler for WSServer {
 
         if conn_map.contains_key(&ticket) {
             println!("ws:req[{}]: reconnect: uuid {}", time::precise_time_ns(), ticket);
+            println!("{} connected users", users_count);
         } else {
             println!("ws:req[{}]: new connection with uuid {}", time::precise_time_ns(), ticket);
 
-            let cookie_op_str = if (cookie_existed) {
+            let cookie_op_str = if cookie_existed {
                 "replacing persistence cookie"
             } else {
                 "creating persistence cookie"
@@ -166,7 +165,6 @@ impl ws::Handler for WSServer {
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        // TODO
         println!("ws:rcv[{}]: user with uuid {} sent ws msg {}",
                  time::precise_time_ns(),
                  "[[[ we don't have uuids in ws yet ]]]",
