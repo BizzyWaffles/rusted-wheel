@@ -215,19 +215,28 @@ impl ws::Handler for WSServer {
                 authorize_ticket_dumb(msg_ticket, msg_contents, self.connections.clone())
             })
             .and_then(|msg_contents| {
-                // FIXME possible out of bounds error
-                let ref msg_type  = msg_contents[0];
-                let ref msg_param = msg_contents[1];
+                msg_contents.split_first()
+                    .ok_or(String::from("missing message type and params"))
+                    .and_then(|(f, r)| {
+                        if f.len() == 0 {
+                            Err(String::from("msg_type is empty"))
+                        } else {
+                            Ok((f.to_owned(), Vec::from(r)))
+                        }
+                    })
+            })
+            .and_then(|(msg_type, msg_params)| {
+                println!("trying to read message contents of {}({})", msg_type, msg_params.join(","));
 
-                println!("trying to read message contents of {}({})", msg_type, msg_param);
-
-                match (msg_type.as_str(), msg_param) {
-                    ("addItemToInventory", item) => {
-                        if let Ok(item_num) = item.parse::<i32>() {
+                match msg_type.as_str() {
+                    "addItemToInventory" => {
+                        if msg_params.len() != 1 {
+                            Err(String::from("parse_message failure: addItemToInventory: no item code"))
+                        } else if let Ok(item_num) = msg_params[0].parse::<i32>() {
                             Item::parse(item_num)
                                 .map(|item| Action::addItemToInventory(item))
                         } else {
-                            Err(String::from("parse_message failure: addItemToInventory: invalid item code"))
+                            Err(String::from("parse_message failure: addItemToInventory: invalid i32 item code"))
                         }
                     },
                     _ => Err(String::from("parse_message failure: unrecognized message type"))
