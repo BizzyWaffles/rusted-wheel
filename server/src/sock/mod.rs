@@ -148,21 +148,19 @@ fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
     }
 
     msg.into_text()
-        .or(Err(parse_error_msg("cannot get text from Message")))
-        .and_then(|message_blob: String| {
-            let mut message_parts = message_blob.split(":");
-
-            let msg_ticket   = message_parts.next();
-            let msg_contents = message_parts.map(|p| p.to_string()).collect();
-
-            msg_ticket
-                .ok_or(parse_error_msg("no ticket"))
-                .and_then(|uuid_string| {
-                    Uuid::parse_str(uuid_string)
-                        .or(Err(parse_error_msg("ticket is invalid uuidv4")))
-                })
-                .map(|uuid| (uuid, msg_contents))
-        })
+        .or(Err(parse_error_msg("cannot get text from Message; is it a binary Message?")))
+        // NOTE(jordan): feels... wrong. But I hate the nesting! There's no unwrap_or_err()...
+        .and_then(|msg| msg                  // Result<String, Err> -> String, or propagate Err
+        .split(":")                          // String -> Split<'_, &str>
+        .map(|p| p.to_string())              // Split<'_, &str> -> &[String]
+        .collect::<Vec<String>>()            // &[String] -> Vec<String>
+        .split_first()                       // Vec<String> -> Option<(String, Vec<String>)>
+        .ok_or(parse_error_msg("no ticket")) // Option -> Result<(String, &[String]), String>
+        .and_then(|(uuid_string, rest)| {    // Result<(String, &[String]), String>
+            Uuid::parse_str(uuid_string)     //   |-> Result<(Uuid, Vec<String>), String>
+                .or(Err(parse_error_msg("ticket is invalid uuidv4")))
+                .map(|uuid| (uuid, Vec::from(rest)))
+        }))
 }
 
 impl ws::Handler for WSServer {
