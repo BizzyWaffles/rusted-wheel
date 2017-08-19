@@ -150,7 +150,7 @@ fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
     msg.into_text()
         .or(Err(parse_error_msg("cannot get text from Message; is it a binary Message?")))
         // NOTE(jordan): feels... wrong. But I hate the nesting! There's no unwrap_or_err()...
-        .and_then(|msg| msg                  // Result<String, Err> -> String, or propagate Err
+        .unwrap_or_else(|err| err)           // Result<String, Err> -> String, or propagate Err
         .split(":")                          // String -> Split<'_, &str>
         .map(|p| p.to_string())              // Split<'_, &str> -> &[String]
         .collect::<Vec<String>>()            // &[String] -> Vec<String>
@@ -160,7 +160,7 @@ fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
             Uuid::parse_str(uuid_string)     //   |-> Result<(Uuid, Vec<String>), String>
                 .or(Err(parse_error_msg("ticket is invalid uuidv4")))
                 .map(|uuid| (uuid, Vec::from(rest)))
-        }))
+        })
 }
 
 impl ws::Handler for WSServer {
