@@ -11,19 +11,22 @@ mod sock;
 
 use std::env;
 use std::thread;
+use std::fmt::Display;
+use std::str::FromStr;
+
+fn env_or <T> (name: &str, default: T) -> T
+    where T: Display + FromStr {
+    env::var(name).ok().and_then(|v| {
+        v.parse::<T>().ok()
+    }).unwrap_or_else(|| {
+        println!("* {} not set; using {}.", name, default);
+        default
+    })
+}
 
 fn main() {
-    let domain : String = env::var("DOMAIN").unwrap_or_else(|_err| {
-        println!("* DOMAIN not set; using localhost.");
-        String::from("localhost")
-    });
-
-    let port : i32 = env::var("PORT")
-        .map(|p| p.parse::<i32>().unwrap())
-        .unwrap_or_else(|_err| {
-            println!("* PORT not set; using 3000.");
-            3000
-        });
+    let domain : String = env_or("DOMAIN", String::from("localhost"));
+    let port   : i32    = env_or("PORT", 3000);
 
     let tcp_thread_handle = {
         let domain = domain.clone();
