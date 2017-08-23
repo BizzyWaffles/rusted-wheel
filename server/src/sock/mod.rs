@@ -5,6 +5,11 @@ use uuid::Uuid;
 use std::sync::{Arc,Mutex};
 use std::collections::{HashMap,HashSet};
 
+mod authorizer;
+
+use self::authorizer::AuthorizesTicket;
+use self::authorizer::DumbTicketStamper;
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Item {
     Potatoes,
@@ -127,24 +132,17 @@ fn put_cookie (name: String, value: String, resp: &mut ws::Response) {
     headers.push((String::from("Set-Cookie"), cookie_bytes));
 }
 
-fn authorize_ticket_dumb (ticket: Uuid, msg_type: Vec<String>, conn_map: ConnectionMap) -> Result<Vec<String>, String> {
-   if conn_map.lock().unwrap().contains_key(&ticket) {
-        Ok(msg_type)
-   } else {
-        Err(String::from("authorize_ticket_dumb authorization failed"))
-   }
-}
+pub type ConnectionMap = Arc<Mutex<HashMap<Uuid, Connection>>>;
 
-type ConnectionMap = Arc<Mutex<HashMap<Uuid, Connection>>>;
-
-struct WSServer {
+struct WSServer<T> {
     out: ws::Sender,
     connections: ConnectionMap,
+    authorizer: T,
 }
 
-fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
+fn parse_message_ticket (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
     fn parse_error_msg (reason: &str) -> String {
-        format!("parse_message failure: {}", reason)
+        format!("parse_message_ticket failure: {}", reason)
     }
 
     msg.into_text()
@@ -161,7 +159,38 @@ fn parse_message (msg: ws::Message) -> Result<(Uuid, Vec<String>), String> {
         })
 }
 
-impl ws::Handler for WSServer {
+fn parse_message_type(msg_contents: Vec<String>) -> Result<(String, Vec<String>), String> {
+    msg_contents.split_first()
+        .ok_or(String::from("missing message type and params"))
+        .and_then(|(f, r)| {
+            if f.len() == 0 {
+                Err(String::from("msg_type is empty"))
+            } else {
+                Ok((f.to_owned(), Vec::from(r)))
+            }
+        })
+}
+
+fn parse_message_action((msg_type, msg_params): (String, Vec<String>)) -> Result<Action, String> {
+    println!("trying to read contents of message {}({})", msg_type, msg_params.join(","));
+
+    // TODO(jordan): replace with Action ParseFrom<String> impl
+    match msg_type.as_str() {
+        "addItemToInventory" => {
+            if msg_params.len() != 1 {
+                Err(String::from("parse_message failure: addItemToInventory: no item code"))
+            } else if let Ok(item_num) = msg_params[0].parse::<i32>() {
+                Item::parse(item_num)
+                    .map(|item| Action::addItemToInventory(item))
+            } else {
+                Err(String::from("parse_message failure: addItemToInventory: invalid i32 item code"))
+            }
+        },
+        _ => Err(String::from("parse_message failure: unrecognized message type"))
+    }
+}
+
+impl ws::Handler for WSServer<DumbTicketStamper> {
     fn on_request(&mut self, req: &ws::Request) -> ws::Result<ws::Response> {
         let mut resp = ws::Response::from_request(req).unwrap();
 
@@ -209,39 +238,10 @@ impl ws::Handler for WSServer {
                  "[[[ we don't have uuids in ws yet ]]]",
                  msg);
 
-        parse_message(msg)
-            .and_then(|(msg_ticket, msg_contents)| {
-                println!("authorizing ticket {}", msg_ticket);
-                authorize_ticket_dumb(msg_ticket, msg_contents, self.connections.clone())
-            })
-            .and_then(|msg_contents| {
-                msg_contents.split_first()
-                    .ok_or(String::from("missing message type and params"))
-                    .and_then(|(f, r)| {
-                        if f.len() == 0 {
-                            Err(String::from("msg_type is empty"))
-                        } else {
-                            Ok((f.to_owned(), Vec::from(r)))
-                        }
-                    })
-            })
-            .and_then(|(msg_type, msg_params)| {
-                println!("trying to read message contents of {}({})", msg_type, msg_params.join(","));
-
-                match msg_type.as_str() {
-                    "addItemToInventory" => {
-                        if msg_params.len() != 1 {
-                            Err(String::from("parse_message failure: addItemToInventory: no item code"))
-                        } else if let Ok(item_num) = msg_params[0].parse::<i32>() {
-                            Item::parse(item_num)
-                                .map(|item| Action::addItemToInventory(item))
-                        } else {
-                            Err(String::from("parse_message failure: addItemToInventory: invalid i32 item code"))
-                        }
-                    },
-                    _ => Err(String::from("parse_message failure: unrecognized message type"))
-                }
-            })
+        let _ = parse_message_ticket(msg)
+            .and_then(|t| self.authorizer.authorize_ticket(t))
+            .and_then(parse_message_type)
+            .and_then(parse_message_action)
             .map(|action| {
                 self.out.send(format!("gotcha, you want to {:?}", action))
             })
@@ -286,5 +286,6 @@ pub fn server (domain: String, port: i32) -> () {
     ws::listen(addr, |out| WSServer {
         out: out,
         connections: connections.clone(),
+        authorizer:  DumbTicketStamper::new(connections.clone()),
     }).unwrap();
 }
