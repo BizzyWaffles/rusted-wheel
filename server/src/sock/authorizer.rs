@@ -20,7 +20,7 @@ impl DumbTicketStamper {
 impl AuthorizesTicket<Uuid, Vec<String>> for DumbTicketStamper {
     fn authorize_ticket(&self, (msg_ticket, rest): (Uuid, Vec<String>)) -> Result<Vec<String>, String> {
         println!("authorizing ticket {}", msg_ticket);
-        if self.conn_map.lock().unwrap().contains_key(&msg_ticket) {
+        if self.conn_map.borrow().contains_key(&msg_ticket) {
             Ok(rest)
         } else {
             Err(String::from("authorize_ticket_dumb authorization failed"))
