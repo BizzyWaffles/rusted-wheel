@@ -6,7 +6,8 @@ use ws;
 use time;
 use std::fmt;
 use uuid::Uuid;
-use std::sync::{Arc,Mutex};
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::collections::{HashMap,HashSet};
 
 mod authorizer;
@@ -136,7 +137,7 @@ fn put_cookie (name: String, value: String, resp: &mut ws::Response) {
     headers.push((String::from("Set-Cookie"), cookie_bytes));
 }
 
-pub type ConnectionMap = Arc<Mutex<HashMap<Uuid, Connection>>>;
+pub type ConnectionMap = Rc<RefCell<HashMap<Uuid, Connection>>>;
 
 struct WSServer<T> {
     out: ws::Sender,
@@ -198,7 +199,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
     fn on_request(&mut self, req: &ws::Request) -> ws::Result<ws::Response> {
         let mut resp = ws::Response::from_request(req).unwrap();
 
-        let mut conn_map = self.connections.lock().unwrap();
+        let mut conn_map = self.connections.borrow_mut();
 
         println!("ws:req[{}]", time::precise_time_ns());
 
@@ -283,7 +284,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 }
 
 pub fn server (domain: String, port: i32) -> () {
-    let connections : ConnectionMap = Arc::new(Mutex::new(HashMap::new()));
+    let connections : ConnectionMap = Rc::new(RefCell::new(HashMap::new()));
     let addr = format!("{}:{}", domain, port);
     println!("WebSockets server listening on {}", addr);
     ws::listen(addr, |out| WSServer {
