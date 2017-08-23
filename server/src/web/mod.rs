@@ -1,3 +1,7 @@
+//! web
+//!
+//! Web is a static file server for putting the front end up.
+//! Sister server to `sock`, which is the websocket server.
 use mount::Mount;
 use std::path::Path;
 use iron::prelude::*;

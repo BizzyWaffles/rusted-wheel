@@ -1,3 +1,7 @@
+//! sock
+//!
+//! Sock is a websocket server.
+//! Sister server to `web`, which is the static file server.
 use ws;
 use time;
 use std::fmt;
