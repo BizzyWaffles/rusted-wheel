@@ -200,12 +200,11 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 
         let cookies : HashMap<String, String> = parse_cookies(req);
 
-        let mut cookie_existed = true;
+        let cookie_existed = cookies.contains_key("bzwf_anon_wstx");
         let ticket = cookies.get("bzwf_anon_wstx")
             .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok())
             .unwrap_or_else(|| {
                 println!("ws:req[{}]: no bzwf_anon_wstx cookie found", time::precise_time_ns());
-                cookie_existed = false;
                 Uuid::new_v4()
             });
 
