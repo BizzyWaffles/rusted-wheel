@@ -32,9 +32,9 @@ newtype Money = Money Int
 newtype Rating = Rating Int
 
 data Item
-  = Jewelry
-  | Berries
-  | Potatoes
+  = Ring
+  | Berry
+  | Potato
   | Rosemary
   | Stick
   | StrangeFungus
