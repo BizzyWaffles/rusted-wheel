@@ -8,6 +8,7 @@ extern crate staticfile;
 
 mod web;
 mod sock;
+mod lib;
 
 use std::env;
 use std::thread;
