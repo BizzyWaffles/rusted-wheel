@@ -7,8 +7,9 @@ extern crate mount;
 extern crate staticfile;
 
 mod web;
-mod sock;
 mod lib;
+mod sock;
+mod game;
 
 use std::env;
 use std::thread;

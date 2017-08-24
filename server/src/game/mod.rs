@@ -3,16 +3,16 @@ use std::collections::HashSet;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Item {
-    Potatoes,
-    Berries,
+    Potato,
+    Berry,
     TreeSap,
 }
 
 impl ParseFrom<i32> for Item {
     fn parse (i: i32) -> Result<Self, String> {
         match i {
-            0 => Ok(Item::Potatoes),
-            1 => Ok(Item::Berries),
+            0 => Ok(Item::Potato),
+            1 => Ok(Item::Berry),
             2 => Ok(Item::TreeSap),
             _ => Err(format!("Item.parse<i32> failure: unrecognized Item {}", i)),
         }
@@ -48,7 +48,7 @@ pub mod AnonymousPlayer {
     use super::*;
     pub fn new () -> Player {
         let mut new_player_inventory = HashSet::new();
-        new_player_inventory.insert(Item::Potatoes);
+        new_player_inventory.insert(Item::Potato);
 
         Player::AnonymousPlayer {
             state: PlayerState {
@@ -63,7 +63,7 @@ pub mod RegisteredPlayer {
     use super::*;
     pub fn new (id: i32, name: String) -> Player {
         let mut new_player_inventory = HashSet::new();
-        new_player_inventory.insert(Item::Potatoes);
+        new_player_inventory.insert(Item::Potato);
 
         Player::RegisteredPlayer {
             id: id,
