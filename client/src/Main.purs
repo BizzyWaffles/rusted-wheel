@@ -30,15 +30,25 @@ import Pux.Renderer.React (renderToDOM)
 import Text.Smolder.HTML (button, div)
 import Text.Smolder.Markup (text, (#!))
 
+import WebSocket (WEBSOCKET)
+
 import GameState(AnonPlayer(AnonPlayer), GameState(GameState), ID(ID), Money(Money), Player(Player), PlayerState(PlayerState))
 import Websocket as WS
 
 data Event = Increment | Decrement | NoOp
 
-foldp :: forall fx. Event -> GameState -> EffModel GameState Event fx
-foldp Increment (GameState gameState) = { state: GameState $ gameState { hourOfDay = gameState.hourOfDay + 1 }, effects: [] }
-foldp Decrement (GameState gameState) = { state: GameState $ gameState { hourOfDay = gameState.hourOfDay - 1 }, effects: [] }
-foldp NoOp                         gs = { state: gs                                                           , effects: [] }
+newtype BizzyState =
+  BizzyState {
+    gameState  :: GameState
+  , sendServer :: String -> Array String -> (Eff (ws :: WEBSOCKET, err :: EXCEPTION) Unit)
+  }
+
+foldp :: forall fx. Event -> BizzyState -> EffModel BizzyState Event fx
+foldp Increment (BizzyState bs) = { state: BizzyState bs { gameState = GameState gState { hourOfDay = gState.hourOfDay + 1 } }, effects: [] }
+  where { gameState: (GameState gState), sendServer } = bs
+foldp Decrement (BizzyState bs) = { state: BizzyState bs { gameState = GameState gState { hourOfDay = gState.hourOfDay - 1 } }, effects: [] }
+  where { gameState: (GameState gState), sendServer } = bs
+foldp NoOp      bs              = { state: bs                                                                                 , effects: [] }
 
 view :: GameState -> HTML Event
 view (GameState { player, goons, competitors, hourOfDay, news }) =
@@ -57,10 +67,11 @@ view (GameState { player, goons, competitors, hourOfDay, news }) =
   where
     PlayerState { inventory, runningTasks, loadsAMoney: (Money money), transactions } = either (\(AnonPlayer { anonState }) -> anonState) (\(Player { state }) -> state) player
 
-makeInitialState :: GameState
-makeInitialState = GameState { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
+makeInitialState :: (String -> Array String -> Eff _ Unit) -> BizzyState
+makeInitialState sendServer = BizzyState { gameState, sendServer }
   where
-    person = Left $ AnonPlayer { anonState: PlayerState { inventory: Set.empty, runningTasks: Set.empty, loadsAMoney: Money 0, transactions: [] } }
+    person    = Left $ AnonPlayer { anonState: PlayerState { inventory: Set.empty, runningTasks: Set.empty, loadsAMoney: Money 0, transactions: [] } }
+    gameState = GameState { player: person, goons: Set.empty, competitors: Set.empty, hourOfDay: 0, news: [] }
 
 initCanvas :: forall eff. Eff (canvas :: CANVAS | eff) Context2D
 initCanvas = unsafePartial do
@@ -73,13 +84,16 @@ main :: Eff _ Unit
 main =
   do
     host <- window >>= location >>= hostname
-    WS.init host
-    app <- start
-      { initialState: makeInitialState
-      , view
-      , foldp
-      , inputs: []
-      }
-    renderToDOM "#app" app.markup app.input
-    _ <- initCanvas
-    pure unit
+    WS.init host onConnect
+  where
+    onConnect send =
+      do
+        app <- start
+          { initialState: makeInitialState send
+          , view: (\(BizzyState { gameState }) -> gameState) >>> view
+          , foldp
+          , inputs: []
+          }
+        renderToDOM "#app" app.markup app.input
+        _ <- initCanvas
+        pure unit

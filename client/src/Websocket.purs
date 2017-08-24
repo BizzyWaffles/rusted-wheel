@@ -4,23 +4,34 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Var (($=))
 
-import WebSocket (Connection(Connection), Message(Message), URL(URL), runMessageEvent, runMessage, newWebSocket)
+import Cookie (getCookie)
 
-init :: String -> Eff _ Unit
-init ipAddress = do
+import Data.Array((:))
+import Data.Maybe (Maybe(Just))
+import Data.String (joinWith)
 
-  Connection socket <- newWebSocket (URL $ "ws://" <> ipAddress <> ":3001") []
+import Partial.Unsafe (unsafePartial)
 
-  socket.onopen $= \event -> do
-    socket.send $ Message "hello"
-    socket.send $ Message "goodbye"
+import WebSocket (Connection(Connection), Message(Message), URL(URL), runMessageEvent, runMessage, newWebSocket, WEBSOCKET)
 
-  socket.onmessage $= \event -> do
-    let message = runMessage $ runMessageEvent event
-    when (message == "goodbye") do
-      socket.close
+init :: String -> ((String -> Array String -> (Eff (ws :: WEBSOCKET, err :: EXCEPTION) Unit)) -> Eff _ Unit) -> Eff _ Unit
+init ipAddress onConnect =
+  do
 
-  socket.onclose $= \event -> do
-    log "onclose: Connection closed"
+    Connection socket <- newWebSocket (URL $ "ws://" <> ipAddress <> ":3001") []
+
+    socket.onopen $= \event -> unsafePartial do
+      log "onopen: Connection opened"
+      Just token <- getCookie "bzwf_anon_wstx"
+      onConnect $ \typ args -> socket.send $ Message $ joinWith ":" $ [token, typ] <> args
+
+    socket.onmessage $= \event -> do
+      let message = runMessage $ runMessageEvent event
+      when (message == "goodbye") do
+        socket.close
+
+    socket.onclose $= \event -> do
+      log "onclose: Connection closed"
