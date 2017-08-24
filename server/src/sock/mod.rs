@@ -10,13 +10,12 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::{HashMap};
 
-mod game;
 mod parse;
 mod cookie;
 mod authorizer;
 
 use self::cookie::{parse_cookies,put_cookie};
-use self::game::{Item,Action,Player,AnonymousPlayer};
+use game::{Item,Action,Player,AnonymousPlayer};
 use self::authorizer::{AuthorizesTicket,DumbTicketStamper};
 use self::parse::{parse_message_ticket,parse_message_type,parse_message_action};
 
