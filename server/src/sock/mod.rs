@@ -17,7 +17,7 @@ mod authorizer;
 use self::cookie::{parse_cookies,put_cookie};
 use game::{Item,Action,Player,AnonymousPlayer};
 use self::authorizer::{AuthorizesTicket,DumbTicketStamper};
-use self::parse::{parse_message_ticket,parse_message_type,parse_message_action};
+use self::parse::{parse_message_ticket,parse_message_type,parse_message_action,parse};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -95,10 +95,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                  "[[[ we don't have uuids in ws yet ]]]",
                  msg);
 
-        let _ = parse_message_ticket(msg)
-            .and_then(|t| self.authorizer.authorize_ticket(t))
-            .and_then(parse_message_type)
-            .and_then(parse_message_action)
+        let _ = parse(msg)
             .map(|action| {
                 self.out.send(format!("gotcha, you want to {:?}", action))
             })
@@ -106,6 +103,18 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                 println!("{}", err);
                 self.out.send("got your message, but not sure what it meant")
             });
+
+        // let _ = parse_message_ticket(msg)
+        //     .and_then(|t| self.authorizer.authorize_ticket(t))
+        //     .and_then(parse_message_type)
+        //     .and_then(parse_message_action)
+        //     .map(|action| {
+        //         self.out.send(format!("gotcha, you want to {:?}", action))
+        //     })
+        //     .unwrap_or_else(|err| {
+        //         println!("{}", err);
+        //         self.out.send("got your message, but not sure what it meant")
+        //     });
 
         Ok(())
     }
