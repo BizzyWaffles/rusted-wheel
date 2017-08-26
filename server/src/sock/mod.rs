@@ -17,7 +17,7 @@ mod authorizer;
 use self::cookie::{parse_cookies,put_cookie};
 use game::{Item,Action,Player,AnonymousPlayer};
 use self::authorizer::{AuthorizesTicket,DumbTicketStamper};
-use self::parse::{parse_message_ticket,parse_message_type,parse_message_action,parse};
+use self::parse::{parse,MsgVal};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -96,25 +96,32 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                  msg);
 
         let _ = parse(msg)
-            .map(|action| {
-                self.out.send(format!("gotcha, you want to {:?}", action))
-            })
-            .unwrap_or_else(|err| {
-                println!("{}", err);
-                self.out.send("got your message, but not sure what it meant")
+            .map(|msg_cell| {
+                let mut parsed: Vec<MsgVal> = msg_cell.to_vec();
+                println!("parsed: {:?}", parsed);
+
+                parsed.pop()
+                    .ok_or(String::from("no ticket"))
+                    .and_then(|t| self.authorizer.authorize_ticket(t))
+                    .and_then(|_| parsed.pop().ok_or(String::from("no action")))
+                    .map(|v| if let MsgVal::Action(ref a) = v {
+                        println!("successfully parsed action: {:?}", a);
+                        self.out.send(format!("gotcha, your message is: {:?}", a));
+                    })
+                    .unwrap_or_else(|err| {
+                        println!("{}", err);
+                        self.out.send("got your message, but not sure what it meant");
+                    });
             });
 
-        // let _ = parse_message_ticket(msg)
-        //     .and_then(|t| self.authorizer.authorize_ticket(t))
-        //     .and_then(parse_message_type)
-        //     .and_then(parse_message_action)
-        //     .map(|action| {
-        //         self.out.send(format!("gotcha, you want to {:?}", action))
-        //     })
-        //     .unwrap_or_else(|err| {
-        //         println!("{}", err);
-        //         self.out.send("got your message, but not sure what it meant")
-        //     });
+                // if let MsgVal::Action(ref action) = msg_cell.val {
+                //     self.out.send(format!("gotcha, your message is: {:?}", action));
+                // }
+            // })
+            // .unwrap_or_else(|err| {
+                // println!("{}", err);
+                // self.out.send("got your message, but not sure what it meant");
+            // });
 
         Ok(())
     }
@@ -146,12 +153,12 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 }
 
 pub fn server (domain: String, port: i32) -> () {
-    let connections : ConnectionMap = Rc::new(RefCell::new(HashMap::new()));
-    let addr = format!("{}:{}", domain, port);
+    let connections: ConnectionMap = Rc::new(RefCell::new(HashMap::new()));
+    let addr: String = format!("{}:{}", domain, port);
     println!("WebSockets server listening on {}", addr);
     ws::listen(addr, |out| WSServer {
         out: out,
         connections: connections.clone(),
-        authorizer:  DumbTicketStamper::new(connections.clone()),
+        authorizer: DumbTicketStamper::new(connections.clone()),
     }).unwrap();
 }
