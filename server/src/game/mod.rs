@@ -19,7 +19,7 @@ impl ParseFrom<i32> for Item {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 #[allow(non_camel_case_types)]
 pub enum Action {
     addItemToInventory(Item),
