@@ -34,12 +34,12 @@ impl PendingMsg <ws::Message> {
     }
 }
 
-// TODO(jordan): investigate whether clone is necessary
-impl <T: Clone> PendingMsg <T> {
-    fn parse_next <F,Tnew,V> (&self, parser: F)
+// NOTE(jordan): after parse_next the old PendingMsg is dropped.
+impl <T> PendingMsg <T> {
+    fn parse_next <F,Tnew,V> (self, parser: F)
         -> Result<PartialMsg<Tnew,Rc<UnitMsgCell<V>>>, String>
         where F: Fn(Option<T>) -> Result<(V, Option<Tnew>), String> {
-        parser(Some(self.pending.clone()))
+        parser(Some(self.pending))
             .map(|(newly_parsed, still_pending)| {
                 PartialMsg {
                     parsed: Rc::new(UnitMsgCell {
@@ -51,15 +51,16 @@ impl <T: Clone> PendingMsg <T> {
     }
 }
 
-impl <T: Clone,P> PartialMsg <T,Rc<P>> {
-    fn parse_next <F,Tnew,V> (&self, parser: F)
+impl <T,P> PartialMsg <T,Rc<P>> {
+    fn parse_next <F,Tnew,V> (self, parser: F)
         -> Result<PartialMsg<Tnew,Rc<MsgCell<V,Rc<P>>>>, String>
         where F: Fn(Option<T>) -> Result<(V, Option<Tnew>), String> {
-        parser(self.pending.clone())
+        let parsed = self.parsed;
+        parser(self.pending)
             .map(|(newly_parsed, still_pending)| {
                 PartialMsg {
                     parsed: Rc::new(MsgCell {
-                        next: self.parsed.clone(),
+                        next: parsed,
                         val:  newly_parsed,
                     }),
                     pending: still_pending,
