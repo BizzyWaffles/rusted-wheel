@@ -4,36 +4,6 @@ use std::rc::Rc;
 use lib::ParseFrom;
 use super::{Item,Action};
 
-#[derive(Debug,Clone)]
-pub enum MsgVal {
-    WsMessage(ws::Message),
-    Uuid(Uuid),
-    Item(Item),
-    Action(Action),
-    String(String),
-}
-
-impl Into<MsgVal> for Uuid {
-    fn into(self) -> MsgVal {
-        MsgVal::Uuid(self)
-    }
-}
-impl Into<MsgVal> for Item {
-    fn into(self) -> MsgVal {
-        MsgVal::Item(self)
-    }
-}
-impl Into<MsgVal> for Action {
-    fn into(self) -> MsgVal {
-        MsgVal::Action(self)
-    }
-}
-impl Into<MsgVal> for String {
-    fn into(self) -> MsgVal {
-        MsgVal::String(self)
-    }
-}
-
 #[derive(Debug)]
 pub struct MsgCell<T,U> {
     pub val:  T,
@@ -54,11 +24,6 @@ struct PendingMsg<T> {
 struct PartialMsg<T,P> {
     parsed:  P,
     pending: Option<T>,
-}
-
-#[derive(Debug)]
-struct ParsedMsg<P> {
-    parsed: P,
 }
 
 impl PendingMsg <ws::Message> {
