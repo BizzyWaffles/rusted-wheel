@@ -15,7 +15,7 @@ mod cookie;
 mod authorizer;
 
 use self::cookie::{parse_cookies,put_cookie};
-use game::{Item,Action,Player,AnonymousPlayer};
+use game::{Action,Player,AnonymousPlayer};
 use self::authorizer::{AuthorizesTicket,DumbTicketStamper};
 use self::msg::{ActionMsg,parse};
 
