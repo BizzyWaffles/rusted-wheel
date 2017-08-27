@@ -99,11 +99,9 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             .and_then(|msg_cell: ActionMsg| {
                 let ref action: Action = msg_cell.val;
                 let ref ticket: Uuid   = msg_cell.next.val;
-                let auth_result: Result<(),String> = self.authorizer.authorize_ticket(*ticket);
-
-                auth_result
+                self.authorizer
+                    .authorize_ticket(*ticket)
                     .map(|_| {
-                        println!("auth result is good");
                         let _ = self.out.send(format!("gotcha, you want to {:?}", action));
                     })
             })
