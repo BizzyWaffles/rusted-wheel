@@ -1,5 +1,6 @@
 use super::ConnectionMap;
 use super::MsgVal;
+use uuid::Uuid;
 
 pub trait AuthorizesTicket<T> {
     fn authorize_ticket(&self, ticket: T) -> Result<(), String>;
@@ -17,17 +18,13 @@ impl DumbTicketStamper {
     }
 }
 
-impl AuthorizesTicket<MsgVal> for DumbTicketStamper {
-    fn authorize_ticket(&self, ticket_val: MsgVal) -> Result<(), String> {
-        println!("authorizing ticket {:?}", ticket_val);
-        if let MsgVal::Uuid(ticket) = ticket_val {
-            if self.conn_map.borrow().contains_key(&ticket) {
-                Ok(())
-            } else {
-                Err(String::from("authorize_ticket_dumb: authorization failed"))
-            }
+impl AuthorizesTicket<Uuid> for DumbTicketStamper {
+    fn authorize_ticket(&self, ticket: Uuid) -> Result<(), String> {
+        println!("authorizing ticket {:?}", ticket);
+        if self.conn_map.borrow().contains_key(&ticket) {
+            Ok(())
         } else {
-            Err(String::from("authorize_ticket_dumb: ticket is not MsgVal::Uuid"))
+            Err(String::from("authorize_ticket_dumb: authorization failed"))
         }
     }
 }

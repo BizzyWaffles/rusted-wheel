@@ -97,21 +97,24 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 
         let _ = parse(msg)
             .map(|msg_cell| {
-                let mut parsed: Vec<MsgVal> = msg_cell.to_vec();
-                println!("parsed: {:?}", parsed);
+                let ref action: Action = msg_cell.val;
+                let ref ticket: Uuid   = msg_cell.next.val;
 
-                parsed.pop()
-                    .ok_or(String::from("no ticket"))
-                    .and_then(|t| self.authorizer.authorize_ticket(t))
-                    .and_then(|_| parsed.pop().ok_or(String::from("no action")))
-                    .map(|v| if let MsgVal::Action(ref a) = v {
-                        println!("successfully parsed action: {:?}", a);
-                        self.out.send(format!("gotcha, your message is: {:?}", a));
-                    })
-                    .unwrap_or_else(|err| {
-                        println!("{}", err);
-                        self.out.send("got your message, but not sure what it meant");
-                    });
+                println!("authorized? {:?}", self.authorizer.authorize_ticket(*ticket));
+                println!("action: {:?}", action);
+
+                // parsed.pop()
+                //     .ok_or(String::from("no ticket"))
+                //     .and_then(|t| self.authorizer.authorize_ticket(t))
+                //     .and_then(|_| parsed.pop().ok_or(String::from("no action")))
+                //     .map(|v| if let MsgVal::Action(ref a) = v {
+                //         println!("successfully parsed action: {:?}", a);
+                //         self.out.send(format!("gotcha, your message is: {:?}", a));
+                //     })
+                //     .unwrap_or_else(|err| {
+                //         println!("{}", err);
+                //         self.out.send("got your message, but not sure what it meant");
+                //     });
             });
 
                 // if let MsgVal::Action(ref action) = msg_cell.val {
