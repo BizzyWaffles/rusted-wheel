@@ -40,27 +40,10 @@ pub struct MsgCell<T,U> {
     pub next: U,
 }
 
-// #[derive(Debug)]
-// pub enum MsgCell<T,U> {
-//     Unit { val: T },
-//     Link { val: T, next: U },
-// }
-
 #[derive(Debug)]
 pub struct UnitMsgCell<T> {
     pub val: T,
 }
-
-// impl MsgCell {
-//     pub fn to_vec(&self) -> Vec<MsgVal> {
-//         // OPTIMIZE(jordan): append allocates 2x memory needed
-//         let mut v: Vec<MsgVal> = vec![self.val.clone()];
-//         if let Some(ref n) = self.next {
-//             v.append(&mut n.to_vec());
-//         }
-//         return v
-//     }
-// }
 
 #[derive(Debug)]
 struct PendingMsg<T> {
@@ -90,8 +73,8 @@ impl PendingMsg <ws::Message> {
 impl <T: Clone> PendingMsg <T> {
     fn parse_next <F,Tnew,V> (&self, parser: F)
         -> Result<PartialMsg<Tnew,Rc<UnitMsgCell<V>>>, String>
-        where F: Fn(T) -> Result<(V, Option<Tnew>), String> {
-        parser(self.pending.clone())
+        where F: Fn(Option<T>) -> Result<(V, Option<Tnew>), String> {
+        parser(Some(self.pending.clone()))
             .map(|(newly_parsed, still_pending)| {
                 PartialMsg {
                     parsed: Rc::new(UnitMsgCell {
@@ -106,10 +89,8 @@ impl <T: Clone> PendingMsg <T> {
 impl <T: Clone,P> PartialMsg <T,Rc<P>> {
     fn parse_next <F,Tnew,V> (&self, parser: F)
         -> Result<PartialMsg<Tnew,Rc<MsgCell<V,Rc<P>>>>, String>
-        where F: Fn(T) -> Result<(V, Option<Tnew>), String> {
-        self.pending.clone()
-            .ok_or(String::from(""))
-            .and_then(parser)
+        where F: Fn(Option<T>) -> Result<(V, Option<Tnew>), String> {
+        parser(self.pending.clone())
             .map(|(newly_parsed, still_pending)| {
                 PartialMsg {
                     parsed: Rc::new(MsgCell {
@@ -122,29 +103,13 @@ impl <T: Clone,P> PartialMsg <T,Rc<P>> {
     }
 }
 
-// impl <T: Clone,V,N> PartialMsg <T,Rc<MsgCell<V,N>>> {
-//     fn parse_next <F,Tnew,Vnew,Nnew> (&self, parser: F)
-//         -> Result<PartialMsg<Tnew,Rc<MsgCell<Vnew,Rc<MsgCell<V,N>>>>>, String>
-//         where F: Fn(Option<T>) -> Result<(Vnew, Option<Tnew>), String> {
-//         parser(self.pending.clone())
-//             .map(|(newly_parsed, still_pending)| {
-//                 PartialMsg {
-//                     parsed: Some(Rc::new(MsgCell {
-//                         next: self.parsed.clone(),
-//                         val:  newly_parsed.into(),
-//                     })),
-//                     pending: still_pending,
-//                 }
-//             })
-//     }
-// }
-
-fn parse_ticket (msg: ws::Message) -> Result<(Uuid, Option<String>), String> {
+fn parse_ticket (msg: Option<ws::Message>) -> Result<(Uuid, Option<String>), String> {
     fn parse_error_msg (reason: &str) -> String {
         format!("parse_ticket failure: {}", reason)
     }
 
-    msg.into_text()
+    msg.ok_or(parse_error_msg("there is no message"))
+        ?.into_text()
         .or(Err(parse_error_msg("cannot get text from Message; is it a binary Message?")))
         ?.splitn(2, ':')
         .map(|p| p.to_string())
@@ -158,8 +123,10 @@ fn parse_ticket (msg: ws::Message) -> Result<(Uuid, Option<String>), String> {
         })?
 }
 
-fn parse_action (mut action_string: String) -> Result<(Action, Option<String>), String> {
-    // FIXME errors can occur here
+fn parse_action (action_string: Option<String>) -> Result<(Action, Option<String>), String> {
+    let mut action_string: String = action_string
+        .ok_or(String::from("parse_action failure: got None for action_string"))?;
+
     let left_paren: usize = action_string
         .find("(")
         .ok_or(String::from("parse_action failure: could not find \"(\""))?;
@@ -203,7 +170,7 @@ fn parse_action (mut action_string: String) -> Result<(Action, Option<String>), 
     }
 }
 
-type ActionMsg = Rc<MsgCell<Action,Rc<UnitMsgCell<Uuid>>>>;
+pub type ActionMsg = Rc<MsgCell<Action,Rc<UnitMsgCell<Uuid>>>>;
 
 pub fn parse (msg: ws::Message) -> Result<ActionMsg, String> {
     PendingMsg::new(msg)

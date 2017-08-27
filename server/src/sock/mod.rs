@@ -10,14 +10,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::{HashMap};
 
-mod parse;
+mod msg;
 mod cookie;
 mod authorizer;
 
 use self::cookie::{parse_cookies,put_cookie};
 use game::{Item,Action,Player,AnonymousPlayer};
 use self::authorizer::{AuthorizesTicket,DumbTicketStamper};
-use self::parse::{parse,MsgVal};
+use self::msg::{ActionMsg,parse};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -96,35 +96,21 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                  msg);
 
         let _ = parse(msg)
-            .map(|msg_cell| {
+            .and_then(|msg_cell: ActionMsg| {
                 let ref action: Action = msg_cell.val;
                 let ref ticket: Uuid   = msg_cell.next.val;
+                let auth_result: Result<(),String> = self.authorizer.authorize_ticket(*ticket);
 
-                println!("authorized? {:?}", self.authorizer.authorize_ticket(*ticket));
-                println!("action: {:?}", action);
-
-                // parsed.pop()
-                //     .ok_or(String::from("no ticket"))
-                //     .and_then(|t| self.authorizer.authorize_ticket(t))
-                //     .and_then(|_| parsed.pop().ok_or(String::from("no action")))
-                //     .map(|v| if let MsgVal::Action(ref a) = v {
-                //         println!("successfully parsed action: {:?}", a);
-                //         self.out.send(format!("gotcha, your message is: {:?}", a));
-                //     })
-                //     .unwrap_or_else(|err| {
-                //         println!("{}", err);
-                //         self.out.send("got your message, but not sure what it meant");
-                //     });
+                auth_result
+                    .map(|_| {
+                        println!("auth result is good");
+                        let _ = self.out.send(format!("gotcha, you want to {:?}", action));
+                    })
+            })
+            .map_err(|err: String| {
+                println!("err {}", err);
+                let _ = self.out.send(err);
             });
-
-                // if let MsgVal::Action(ref action) = msg_cell.val {
-                //     self.out.send(format!("gotcha, your message is: {:?}", action));
-                // }
-            // })
-            // .unwrap_or_else(|err| {
-                // println!("{}", err);
-                // self.out.send("got your message, but not sure what it meant");
-            // });
 
         Ok(())
     }

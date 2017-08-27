@@ -1,5 +1,4 @@
 use super::ConnectionMap;
-use super::MsgVal;
 use uuid::Uuid;
 
 pub trait AuthorizesTicket<T> {
