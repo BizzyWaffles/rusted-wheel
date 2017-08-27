@@ -2,7 +2,7 @@ use ws;
 use uuid::Uuid;
 use std::rc::Rc;
 use lib::ParseFrom;
-use super::{Item,Action};
+use game::{Item,Action};
 
 #[derive(Debug)]
 pub struct MsgCell<T,U> {
