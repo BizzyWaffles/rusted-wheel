@@ -21,26 +21,36 @@ use self::msg::{ActionMsg,parse};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
-    uuid   : Uuid,
+    token  : ws::util::Token,
+    ticket : Uuid,
     player : Player,
 }
 
 impl Connection {
-    fn new(u: Uuid, p: Player) -> Connection {
+    fn new(tk: ws::util::Token, tx: Uuid, p: Player) -> Connection {
         Connection {
-            uuid  : u,
-            player: p
+            token : tk,
+            ticket: tx,
+            player: p,
         }
     }
 }
 
 impl fmt::Display for Connection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "conn{{{}}}", self.uuid)
+        write!(f, "conn[{:?}]{{{}}}", self.token, self.ticket)
     }
 }
 
-pub type ConnectionMap = Rc<RefCell<HashMap<Uuid, Connection>>>;
+fn ws_log (evt: &str, token: ws::util::Token, msg: &str) {
+    println!("ws:{}[{}][{:?}]: {}", evt, time::precise_time_ns(), token, msg)
+}
+
+fn ws_conn_log (evt: &str, con: &Connection, msg: &str) {
+    println!("ws:{}[{}]:[{}]: {}", evt, time::precise_time_ns(), con, msg)
+}
+
+pub type ConnectionMap = Rc<RefCell<HashMap<ws::util::Token, Connection>>>;
 
 struct WSServer<T> {
     out: ws::Sender,
@@ -50,92 +60,98 @@ struct WSServer<T> {
 
 impl ws::Handler for WSServer<DumbTicketStamper> {
     fn on_request(&mut self, req: &ws::Request) -> ws::Result<ws::Response> {
+        let token = self.out.token();
+        ws_log("req", token, "on_request received");
+
+        let cookies: HashMap<String, String> = parse_cookies(req);
+        let ticket: Option<Uuid> = cookies
+            .get("bzwf_anon_wstx")
+            .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok());
+
         let mut resp = ws::Response::from_request(req).unwrap();
 
-        let mut conn_map = self.connections.borrow_mut();
-
-        println!("ws:req[{}]", time::precise_time_ns());
-
-        let cookies : HashMap<String, String> = parse_cookies(req);
-
-        let cookie_existed = cookies.contains_key("bzwf_anon_wstx");
-        let ticket = cookies.get("bzwf_anon_wstx")
-            .and_then(|uuid_string| Uuid::parse_str(uuid_string.as_str()).ok())
-            .unwrap_or_else(|| {
-                println!("ws:req[{}]: no bzwf_anon_wstx cookie found", time::precise_time_ns());
-                Uuid::new_v4()
-            });
-
-        let users_count = conn_map.len();
-
-        if conn_map.contains_key(&ticket) {
-            println!("ws:req[{}]: reconnect: uuid {}", time::precise_time_ns(), ticket);
-            println!("{} connected users", users_count);
+        if let Some(ticket) = ticket {
+            // If you have a ticket, you may have authenticated already.
+            // Your connection was already established and has been upgraded.
+            let conn_map = self.connections.borrow();
+            let conn = conn_map.get(&token).unwrap();
+            // TODO(jordan): ???
+            let _ = self.authorizer.authorize_ticket(token, ticket)
+                .map(|_| {
+                    ws_conn_log("req", &conn, "ticket matches connection ticket");
+                })
+                .map_err(|err| {
+                    ws_conn_log("req", &conn, &format!("err {}", err));
+                });
         } else {
-            println!("ws:req[{}]: new connection with uuid {}", time::precise_time_ns(), ticket);
-
-            let cookie_op_str = if cookie_existed {
-                "replacing persistence cookie"
-            } else {
-                "creating persistence cookie"
-            };
-
-            println!("ws:req[{}]: {}: bzwf_anon_wstx={}", time::precise_time_ns(), cookie_op_str, ticket);
-            println!("{} connected users", users_count + 1);
+            // QUESTION(jordan): does lack of a ticket always mean anonymous player?
+            // You do not have a ticket. Create a new Connection and authenticate anonymously.
+            let ticket = Uuid::new_v4();
+            let new_conn = Connection::new(token, ticket, AnonymousPlayer::new());
+            ws_conn_log("req", &new_conn, "new connection");
+            ws_conn_log("req", &new_conn, &format!("put cookie bzwf_anon_wstx={}", ticket));
             put_cookie(String::from("bzwf_anon_wstx"), ticket.to_string(), &mut resp);
-            conn_map.insert(ticket, Connection::new(ticket, AnonymousPlayer::new()));
+            self.connections.borrow_mut().insert(token, new_conn);
         }
+
+        ws_log("req", token, &format!("{} connected users", self.connections.borrow().len()));
 
         Ok(resp)
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        println!("ws:rcv[{}]: user with uuid {} sent ws msg {}",
-                 time::precise_time_ns(),
-                 "[[[ we don't have uuids in ws yet ]]]",
-                 msg);
+        let token = self.out.token();
 
         let _ = parse(msg)
             .and_then(|msg_cell: ActionMsg| {
                 let ref action: Action = msg_cell.val;
-                let ref ticket: Uuid   = msg_cell.next.val;
-                self.authorizer
-                    .authorize_ticket(*ticket)
+                let ticket: Uuid = msg_cell.next.val;
+
+                self.authorizer.authorize_ticket(token, ticket)
                     .map(|_| {
+                        let conn_map = self.connections.borrow();
+                        let conn = conn_map.get(&token).unwrap();
+                        ws_conn_log("rcv", &conn, &format!("{:?}", action));
                         let _ = self.out.send(format!("gotcha, you want to {:?}", action));
                     })
             })
             .map_err(|err: String| {
-                println!("err {}", err);
+                ws_log("rcv", token, &format!("err {}", err));
                 let _ = self.out.send(err);
             });
 
         Ok(())
     }
 
-    fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
-        // TODO
-        println!("ws:opn[{}]: user with uuid {} opened ws cxn",
-                 time::precise_time_ns(),
-                 "[[[ we don't have uuids in ws yet ]]]");
+    fn on_open(&mut self, hs: ws::Handshake) -> ws::Result<()> {
+        let token = self.out.token();
+        let cookies = parse_cookies(&hs.request);
+        cookies.get("bzwf_anon_wstx")
+            .map_or_else(|| {
+                // TODO(jordan): what do we do about this? ws::ErrorKind::Custom?
+                // If a user opens without a cookie, that means one was not set during on_request.
+                // That's almost definitely an error, except when debugging with wsta.
+                ws_log("opn", token, "HEY user opened ws cxn without cookie");
+            }, |ticket| {
+                ws_log("opn", token, &format!("user opened ws cxn with ticket {}", ticket));
+            });
+
         Ok(())
     }
 
     fn on_close(&mut self, code: ws::CloseCode, reason: &str) {
-        println!("ws:cls[{}]: user with uuid {} closed ws cxn\n\tCode [{:?}] reason: {}",
-                 time::precise_time_ns(),
-                 "[[[ we don't have uuids in ws yet ]]]",
-                 code,
-                 reason);
-        // TODO
+        // TODO(jordan): remove a user's Connection struct
+        self.connections.borrow()
+            .get(&self.out.token())
+            .map(|conn| {
+                ws_conn_log("cls", conn, &format!("cxn closed\n\tcode [{:?}] reason: {}", code, reason));
+            });
     }
 
     fn on_error(&mut self, err: ws::Error) {
-        println!("ws:err[{}]: user with uuid {} got error {}",
-                 time::precise_time_ns(),
-                 "[[[ we don't have uuids in ws yet ]]]",
-                 err);
-        // TODO
+        let token = self.out.token();
+        // TODO(jordan): when does this happen? how should we handle it?
+        ws_log("err", token, &format!("got error {}", err));
     }
 }
 
