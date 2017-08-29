@@ -110,9 +110,11 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                 self.authorizer.authorize_ticket(token, ticket)
                     .map(|conn| (conn, action))
             })
-            .map(|(conn, action)| {
+            .map(|(mut conn, action)| {
+                let Action::addItemToInventory(item) = action.clone();
+                conn.player.state().inventory.insert(item);
                 ws_conn_log("rcv", &conn, &format!("{:?}", action));
-                let _ = self.out.send(format!("gotcha, you want to {:?}", action));
+                let _ = self.out.send(format!("{:?}", conn.player.state()));
             })
             .map_err(|err: String| {
                 ws_log("rcv", token, &format!("err {}", err));

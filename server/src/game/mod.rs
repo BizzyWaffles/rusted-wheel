@@ -27,7 +27,7 @@ pub enum Action {
 
 #[derive(Debug, Clone)]
 pub struct PlayerState {
-    inventory: HashSet<Item>,
+    pub inventory: HashSet<Item>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +40,15 @@ pub enum Player {
         id    : i32,
         name  : String,
         state : PlayerState,
+    }
+}
+
+impl Player {
+    pub fn state (&mut self) -> &mut PlayerState {
+        match self {
+            &mut Player::AnonymousPlayer { ref mut state } => state,
+            &mut Player::RegisteredPlayer { ref mut id, ref mut name, ref mut state } => state,
+        }
     }
 }
 
