@@ -104,16 +104,15 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 
         let _ = parse(msg)
             .and_then(|msg_cell: ActionMsg| {
-                let ref action: Action = msg_cell.val;
+                let action: Action = msg_cell.val.clone();
                 let ticket: Uuid = msg_cell.next.val;
 
                 self.authorizer.authorize_ticket(token, ticket)
-                    .map(|_| {
-                        let conn_map = self.connections.borrow();
-                        let conn = conn_map.get(&token).unwrap();
-                        ws_conn_log("rcv", &conn, &format!("{:?}", action));
-                        let _ = self.out.send(format!("gotcha, you want to {:?}", action));
-                    })
+                    .map(|conn| (conn, action))
+            })
+            .map(|(conn, action)| {
+                ws_conn_log("rcv", &conn, &format!("{:?}", action));
+                let _ = self.out.send(format!("gotcha, you want to {:?}", action));
             })
             .map_err(|err: String| {
                 ws_log("rcv", token, &format!("err {}", err));
@@ -124,25 +123,27 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
     }
 
     fn on_open(&mut self, hs: ws::Handshake) -> ws::Result<()> {
-        let token = self.out.token();
+        // NOTE(jordan): There should be a Connection in the map, and a cookie matching the ticket.
+        let token   = self.out.token();
         let cookies = parse_cookies(&hs.request);
-        cookies.get("bzwf_anon_wstx")
-            .map_or_else(|| {
-                // TODO(jordan): what do we do about this? ws::ErrorKind::Custom?
-                // If a user opens without a cookie, that means one was not set during on_request.
-                // That's almost definitely an error, except when debugging with wsta.
-                ws_log("opn", token, "HEY user opened ws cxn without cookie");
-            }, |ticket| {
-                ws_log("opn", token, &format!("user opened ws cxn with ticket {}", ticket));
-            });
+
+        let _ = cookies.get("bzwf_anon_wstx")
+            .ok_or(String::from("No bzwf_anon_wstx cookie!"))
+            // ^^ TODO?(jordan): ws::Error?
+            .and_then(|ticket| Uuid::parse_str(ticket).map_err(|_| String::from("invalid cookie")))
+            .map(|ticket| (token, ticket))
+            .and_then(|(token, ticket)| self.authorizer.authorize_ticket(token, ticket))
+            .map(|conn| ws_conn_log("opn", &conn, "cxn opened"))
+            .map_err(|err| ws_log("opn", token, &format!("error: {}", err)));
 
         Ok(())
     }
 
     fn on_close(&mut self, code: ws::CloseCode, reason: &str) {
         // TODO(jordan): remove a user's Connection struct
+        let token = self.out.token();
         self.connections.borrow()
-            .get(&self.out.token())
+            .get(&token)
             .map(|conn| {
                 ws_conn_log("cls", conn, &format!("cxn closed\n\tcode [{:?}] reason: {}", code, reason));
             });
