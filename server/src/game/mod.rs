@@ -1,21 +1,46 @@
+use uuid::Uuid;
 use lib::ParseFrom;
 use std::collections::HashSet;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Item {
-    Potato,
-    Berry,
-    TreeSap,
+    Potato  { id: Uuid },
+    Berry   { id: Uuid },
+    TreeSap { id: Uuid },
 }
 
 impl ParseFrom<i32> for Item {
     fn parse (i: i32) -> Result<Self, String> {
         match i {
-            0 => Ok(Item::Potato),
-            1 => Ok(Item::Berry),
-            2 => Ok(Item::TreeSap),
+            0 => Ok(Potato::new()),
+            1 => Ok(Berry::new()),
+            2 => Ok(TreeSap::new()),
             _ => Err(format!("Item.parse<i32> failure: unrecognized Item {}", i)),
         }
+    }
+}
+
+#[allow(non_snake_case)]
+mod Potato {
+    use super::{Item,Uuid};
+    pub fn new () -> Item {
+        Item::Potato { id: Uuid::new_v4() }
+    }
+}
+
+#[allow(non_snake_case)]
+mod Berry {
+    use super::{Item,Uuid};
+    pub fn new () -> Item {
+        Item::Berry { id: Uuid::new_v4() }
+    }
+}
+
+#[allow(non_snake_case)]
+mod TreeSap {
+    use super::{Item,Uuid};
+    pub fn new () -> Item {
+        Item::TreeSap { id: Uuid::new_v4() }
     }
 }
 
@@ -58,7 +83,7 @@ pub mod AnonymousPlayer {
     use super::*;
     pub fn new () -> Player {
         let mut new_player_inventory = HashSet::new();
-        new_player_inventory.insert(Item::Potato);
+        new_player_inventory.insert(Potato::new());
 
         Player::AnonymousPlayer {
             state: PlayerState {
@@ -73,7 +98,7 @@ pub mod RegisteredPlayer {
     use super::*;
     pub fn new (id: i32, name: String) -> Player {
         let mut new_player_inventory = HashSet::new();
-        new_player_inventory.insert(Item::Potato);
+        new_player_inventory.insert(Potato::new());
 
         Player::RegisteredPlayer {
             id: id,
