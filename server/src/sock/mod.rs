@@ -50,7 +50,7 @@ fn ws_conn_log (evt: &str, con: &Connection, msg: &str) {
     println!("ws:{}[{}]:[{}]: {}", evt, time::precise_time_ns(), con, msg)
 }
 
-pub type ConnectionMap = Rc<RefCell<HashMap<ws::util::Token, Connection>>>;
+pub type ConnectionMap = Rc<RefCell<HashMap<ws::util::Token, Rc<RefCell<Connection>>>>>;
 
 struct WSServer<T> {
     out: ws::Sender,
@@ -74,7 +74,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             // If you have a ticket, you may have authenticated already.
             // Your connection was already established and has been upgraded.
             let conn_map = self.connections.borrow();
-            let conn = conn_map.get(&token).unwrap();
+            let conn = conn_map.get(&token).unwrap().borrow();
             // TODO(jordan): ???
             let _ = self.authorizer.authorize_ticket(token, ticket)
                 .map(|_| {
@@ -91,7 +91,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             ws_conn_log("req", &new_conn, "new connection");
             ws_conn_log("req", &new_conn, &format!("put cookie bzwf_anon_wstx={}", ticket));
             put_cookie(String::from("bzwf_anon_wstx"), ticket.to_string(), &mut resp);
-            self.connections.borrow_mut().insert(token, new_conn);
+            self.connections.borrow_mut().insert(token, Rc::new(RefCell::new(new_conn)));
         }
 
         ws_log("req", token, &format!("{} connected users", self.connections.borrow().len()));
@@ -110,11 +110,12 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                 self.authorizer.authorize_ticket(token, ticket)
                     .map(|conn| (conn, action))
             })
-            .map(|(mut conn, action)| {
+            .map(|(conn, action)| {
                 let Action::addItemToInventory(item) = action.clone();
-                conn.player.state().inventory.insert(item);
-                ws_conn_log("rcv", &conn, &format!("{:?}", action));
-                let _ = self.out.send(format!("{:?}", conn.player.state()));
+                conn.borrow_mut().player.state().inventory.insert(item);
+                ws_conn_log("rcv", &conn.borrow(), &format!("{:?}", action));
+                println!("{:?}", conn.borrow_mut().player.state());
+                let _ = self.out.send(format!("{:?}", conn.borrow_mut().player.state()));
             })
             .map_err(|err: String| {
                 ws_log("rcv", token, &format!("err {}", err));
@@ -135,7 +136,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             .and_then(|ticket| Uuid::parse_str(ticket).map_err(|_| String::from("invalid cookie")))
             .map(|ticket| (token, ticket))
             .and_then(|(token, ticket)| self.authorizer.authorize_ticket(token, ticket))
-            .map(|conn| ws_conn_log("opn", &conn, "cxn opened"))
+            .map(|conn| ws_conn_log("opn", &conn.borrow(), "cxn opened"))
             .map_err(|err| ws_log("opn", token, &format!("error: {}", err)));
 
         Ok(())
@@ -147,7 +148,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
         self.connections.borrow()
             .get(&token)
             .map(|conn| {
-                ws_conn_log("cls", conn, &format!("cxn closed\n\tcode [{:?}] reason: {}", code, reason));
+                ws_conn_log("cls", &conn.borrow(), &format!("cxn closed\n\tcode [{:?}] reason: {}", code, reason));
             });
     }
 
