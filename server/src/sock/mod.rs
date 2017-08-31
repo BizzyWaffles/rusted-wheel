@@ -150,6 +150,12 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             .map(|conn| {
                 ws_conn_log("cls", &conn.borrow(), &format!("cxn closed\n\tcode [{:?}] reason: {}", code, reason));
             });
+
+        self.connections
+            .borrow_mut()
+            .remove(&token);
+
+        ws_log("cls", token, &format!("{} users connected", self.connections.borrow().len()));
     }
 
     fn on_error(&mut self, err: ws::Error) {
