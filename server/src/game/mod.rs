@@ -40,10 +40,11 @@ pub enum Player {
         id    : i32,
         name  : String,
         state : PlayerState,
-    }
+    },
 }
 
 impl Player {
+    #[allow(unused_variables)]
     pub fn state (&mut self) -> &mut PlayerState {
         match self {
             &mut Player::AnonymousPlayer { ref mut state } => state,
