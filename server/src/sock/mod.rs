@@ -70,20 +70,14 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 
         let mut resp = ws::Response::from_request(req).unwrap();
 
-        if let Some(ticket) = ticket {
+        ticket.and_then(|ticket| {
             // If you have a ticket, you may have authenticated already.
             // Your connection was already established and has been upgraded.
-            let conn_map = self.connections.borrow();
-            let conn = conn_map.get(&token).unwrap().borrow();
-            // TODO(jordan): ???
-            let _ = self.authorizer.authorize_ticket(token, ticket)
-                .map(|_| {
-                    ws_conn_log("req", &conn, "ticket matches connection ticket");
-                })
-                .map_err(|err| {
-                    ws_conn_log("req", &conn, &format!("err {}", err));
-                });
-        } else {
+            self.connections
+                .borrow()
+                .get(&token)
+                .map(|conn| (ticket, conn.clone()))
+        }).or_else(|| {
             // QUESTION(jordan): does lack of a ticket always mean anonymous player?
             // You do not have a ticket. Create a new Connection and authenticate anonymously.
             let ticket = Uuid::new_v4();
@@ -91,8 +85,20 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
             ws_conn_log("req", &new_conn, "new connection");
             ws_conn_log("req", &new_conn, &format!("put cookie bzwf_anon_wstx={}", ticket));
             put_cookie(String::from("bzwf_anon_wstx"), ticket.to_string(), &mut resp);
-            self.connections.borrow_mut().insert(token, Rc::new(RefCell::new(new_conn)));
-        }
+            let conn = Rc::new(RefCell::new(new_conn));
+            self.connections.borrow_mut().insert(token, conn.clone());
+            self.connections.borrow().get(&token).map(|conn| (ticket, conn.clone()))
+        })
+        .map(|(ticket, conn)| {
+            let conn = conn.borrow();
+            let _ = self.authorizer.authorize_ticket(token, ticket)
+                .map(|_| {
+                    ws_conn_log("req", &conn, "ticket matches connection ticket");
+                })
+                .map_err(|err| {
+                    ws_conn_log("req", &conn, &format!("err {}", err));
+                });
+        });
 
         ws_log("req", token, &format!("{} connected users", self.connections.borrow().len()));
 
