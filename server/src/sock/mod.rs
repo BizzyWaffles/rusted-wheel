@@ -117,11 +117,18 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
                     .map(|conn| (conn, action))
             })
             .map(|(conn, action)| {
-                let Action::addItemToInventory(item) = action.clone();
-                conn.borrow_mut().player.state().inventory.insert(item);
                 ws_conn_log("rcv", &conn.borrow(), &format!("{:?}", action));
-                println!("{:?}", conn.borrow_mut().player.state());
-                let _ = self.out.send(format!("{:?}", conn.borrow_mut().player.state()));
+                match action {
+                    Action::addItemToInventory (item) => {
+                        conn.borrow_mut().player.state().inventory.insert(item);
+                        println!("{:?}", conn.borrow_mut().player.state());
+                        let _ = self.out.send(format!("{:?}", conn.borrow_mut().player.state()));
+                    },
+                    Action::getPlayerState () => {
+                        println!("{:?}", conn.borrow_mut().player.state());
+                        let _ = self.out.send(format!("{:?}", conn.borrow_mut().player.state()));
+                    }
+                }
             })
             .map_err(|err: String| {
                 ws_log("rcv", token, &format!("err {}", err));

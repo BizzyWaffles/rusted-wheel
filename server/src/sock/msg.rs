@@ -131,6 +131,13 @@ fn parse_action (action_string: Option<String>) -> Result<(Action, Option<String
                     .and_then(|item_code| Item::parse(item_code))
                     .map(|item| (Action::addItemToInventory(item), remainder))
             },
+            "getPlayerState" => {
+                if !action_parameters.is_empty() {
+                    return Err(String::from("getPlayerState does not take parameters"));
+                }
+
+                Ok((Action::getPlayerState(), remainder))
+            },
             _ => Err(String::from(format!("unrecognized action {}", action_type)))
         }
     }

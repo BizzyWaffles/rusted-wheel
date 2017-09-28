@@ -52,6 +52,7 @@ mod TreeSap {
 #[allow(non_camel_case_types)]
 pub enum Action {
     addItemToInventory(Item),
+    getPlayerState(),
 }
 
 #[derive(Debug, Clone)]
