@@ -9,7 +9,7 @@ copyright:           2017 Author name here
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
+cabal-version:       >= 1.10
 
 executable client
   js-sources:
