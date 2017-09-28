@@ -7,13 +7,13 @@ import Bizzlelude
 import Control.Monad(void)
 
 import GHCJS.DOM(currentDocument, currentWindow)
-import GHCJS.DOM.Document(Document, getBody, getCookie)
-import GHCJS.DOM.HTMLCanvasElement(HTMLCanvasElement)
-import GHCJS.DOM.Node(appendChild)
-import GHCJS.Marshal(fromJSVal)
-import GHCJS.Types(jsval)
+import GHCJS.DOM.Document(getBody, getCookie)
+import GHCJS.DOM.NonElementParentNode(getElementById)
+import GHCJS.DOM.Types(Document(Document))
+import GHCJS.Marshal(fromJSVal, toJSVal)
 
 import JavaScript.Web.Canvas(arc, beginPath, create, getContext, stroke)
+import JavaScript.Web.Canvas.Internal(Canvas(Canvas)) -- Whoopsies
 
 import Shim(decodeURIComponent)
 
@@ -26,7 +26,7 @@ import qualified Data.Text                as Text
 main :: IO ()
 main =
   do
-    --handleSocket
+    handleSocket
     handleCookie
     handleCanvas
 
@@ -49,8 +49,8 @@ handleCookie =
     getCookieMap :: Document -> IO (Map Text Text)
     getCookieMap document =
       do
-        Just (cookie :: String) <- getCookie document
-        Just window             <- currentWindow
+        cookie      <- getCookie document
+        Just window <- currentWindow
         cookie |> (asText >>> (Text.split isCookieSep) >>> sanitize >>> (mapM $ parseParts window) >>> (map Map.fromList))
       where
         isCookieSep ','   = True
@@ -63,11 +63,10 @@ handleCookie =
 handleCanvas :: IO ()
 handleCanvas =
   do
-    Just document                    <- currentDocument
-    Just body                        <- getBody document
-    canvas                           <- create 500 500
-    Just (elem :: HTMLCanvasElement) <- fromJSVal $ jsval canvas
-    void $ appendChild body $ Just elem
+    Just document <- currentDocument
+    Just elem     <- getElementById document ("canvas" :: Text)
+    jsValCanvas   <- toJSVal elem
+    let canvas = Canvas jsValCanvas
     ctx <- getContext canvas
     beginPath ctx
     arc 95 80 52 0 (2 * pi) False ctx

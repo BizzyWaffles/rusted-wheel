@@ -4,13 +4,12 @@ import Bizzlelude
 
 import Control.Monad.IO.Class(liftIO, MonadIO)
 
-import Data.JSString(JSString)
+import Data.JSString(JSString, pack, unpack)
 
-import GHCJS.DOM.Types(fromJSString, FromJSString, toJSString, ToJSString)
-import GHCJS.DOM.Window(Window)
+import GHCJS.DOM.Types(Window(Window))
 
 foreign import javascript unsafe "$1[\"decodeURIComponent\"]($2)"
   js_decodeURIComponent :: Window -> JSString -> IO JSString
 
-decodeURIComponent :: (MonadIO m, ToJSString uri, FromJSString result) => Window -> uri -> m result
-decodeURIComponent self uri = liftIO $ fromJSString <$> (js_decodeURIComponent self $ toJSString uri)
+decodeURIComponent :: (MonadIO m) => Window -> Text -> m Text
+decodeURIComponent self uri = liftIO $ (unpack >>> asText) <$> (js_decodeURIComponent self $ (show >>> pack) uri)
