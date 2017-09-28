@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Item {
+    // TODO(jordan): macro
     Potato  { id: Uuid },
     Berry   { id: Uuid },
     TreeSap { id: Uuid },
@@ -20,6 +21,7 @@ impl ParseFrom<i32> for Item {
     }
 }
 
+// TODO(jordan): macro
 #[allow(non_snake_case)]
 mod Potato {
     use super::{Item,Uuid};
@@ -28,6 +30,7 @@ mod Potato {
     }
 }
 
+// TODO(jordan): macro
 #[allow(non_snake_case)]
 mod Berry {
     use super::{Item,Uuid};
@@ -36,6 +39,7 @@ mod Berry {
     }
 }
 
+// TODO(jordan): macro
 #[allow(non_snake_case)]
 mod TreeSap {
     use super::{Item,Uuid};

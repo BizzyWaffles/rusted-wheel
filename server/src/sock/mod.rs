@@ -160,7 +160,7 @@ impl ws::Handler for WSServer<DumbTicketStamper> {
 
     fn on_error(&mut self, err: ws::Error) {
         let token = self.out.token();
-        // TODO(jordan): when does this happen? how should we handle it?
+        // NOTE(jordan): this happens when we return a ws::Error. Handle it individually. match?
         ws_log("err", token, &format!("got error {}", err));
     }
 }
