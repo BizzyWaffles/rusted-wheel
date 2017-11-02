@@ -1,40 +1,166 @@
-flags: {}
-extra-package-dbs: []
-compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
-setup-info:
-  ghcjs:
-    source:
-      ghcjs-0.2.1.9007019_ghc-8.0.1:
-        url: http://ghcjs.tolysz.org/ghc-8.0-2017-02-05-lts-7.19-9007019.tar.gz
-        sha1: d2cfc25f9cda32a25a87d9af68891b2186ee52f9
-compiler-check: match-exact
-package-indices:
-- name: HackageOrig
-  http: https://hackage.haskell.org/00-index.tar.gz
-  download-prefix: https://hackage.haskell.org/package/
-resolver: lts-7.19
+#setup-info:
+#  ghcjs:
+#    source:
+#      ghcjs-0.2.0.9007008_ghc-8.0:
+#         url: http://ghcjs.tolysz.org/ghc-8.0-2016-11-07-lts-7.8-9007008.tar.gz
+#         sha1: 190300a3725cde44b2a08be9ef829f2077bf8825
+#flags: {}
+#packages:
+#- location: '.'
+#- location:
+#   git: https://github.com/ghcjs/ghcjs-base
+#   commit: 552da6d30fd25857a2ee8eb995d01fd4ae606d22
+#- location:
+#    git: https://github.com/reflex-frp/reflex
+#    commit: 50305c797c41a27660b74f543e204e902c086bbf
+#  extra-dep: true
+#- location:
+#    git: https://github.com/reflex-frp/reflex-dom
+#    commit: 3916bb6e4985204ed971fb6b79fe19c640c7b866
+#    subdirs:
+#    - reflex-dom
+#    - reflex-dom-core
+#  extra-dep: true
+#extra-deps:
+#- bizzlelude-js-1.0.4
+#- containers-0.5.10.2
+#- ghcjs-base-0.2.0
+#- ghcjs-dom-0.8.0.0
+#- ghcjs-dom-jsaddle-0.8.0.0
+#- ghcjs-dom-jsffi-0.8.0.0
+#- jsaddle-0.8.3.2
+#- jsaddle-dom-0.8.0.0
+#- jsaddle-warp-0.8.0.0
+#- prim-uniq-0.1.0.1
+#- ref-tf-0.4.0.1
+#- transformers-0.5.5.0
+#- zenc-0.1.1
+#resolver: lts-7.8
+#compiler: ghcjs-0.2.0.9007008_ghc-8.0
+#compiler-check: match-exact
 
+# Tried LTS-7.5 and failed with "ghcjs-base-0.2.0 not found"
+
+# GHC 8 - GHCJS 0.8
+#compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
+#setup-info:
+#  ghcjs:
+#    source:
+#      ghcjs-0.2.1.9007019_ghc-8.0.1:
+#        url: http://ghcjs.tolysz.org/ghc-8.0-2017-02-05-lts-7.19-9007019.tar.gz
+#        sha1: d2cfc25f9cda32a25a87d9af68891b2186ee52f9
+#flags: {}
+#packages:
+#- location: '.'
+#- location:
+#    git: https://github.com/reflex-frp/reflex
+#    commit: 50305c797c41a27660b74f543e204e902c086bbf
+#  extra-dep: true
+#- location:
+#    git: https://github.com/reflex-frp/reflex-dom
+#    commit: 3916bb6e4985204ed971fb6b79fe19c640c7b866
+#    subdirs:
+#    - reflex-dom
+#    - reflex-dom-core
+#  extra-dep: true
+#extra-deps:
+#- bizzlelude-js-1.0.4
+#- ghcjs-dom-0.8.0.0
+#- ghcjs-dom-jsaddle-0.8.0.0
+#- ghcjs-dom-jsffi-0.8.0.0
+#- jsaddle-0.8.3.2
+#- jsaddle-dom-0.8.0.0
+#- jsaddle-warp-0.8.0.0
+#- prim-uniq-0.1.0.1
+#- ref-tf-0.4.0.1
+#- zenc-0.1.1
+#resolver: lts-7.19
+#compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
+#compiler-check: match-exact
+
+
+# GHC 8 - GHCJS 0.9
+#setup-info:
+#  ghcjs:
+#    source:
+#      ghcjs-0.2.1.9007019_ghc-8.0.1:
+#         url: http://ghcjs.tolysz.org/ghc-8.0-2017-02-05-lts-7.19-9007019.tar.gz
+#         sha1: d2cfc25f9cda32a25a87d9af68891b2186ee52f9
+#flags: {}
+#packages:
+#- location: '.'
+#- location:
+#    git: https://github.com/reflex-frp/reflex
+#    commit: 41c56b605b05ebbe73c845137f076ab76b417f67
+#  extra-dep: true
+#- location:
+#    git: https://github.com/reflex-frp/reflex-dom
+#    commit: 9a0a7d9dada8dcc452dc3b3a611a7d022ebd89b6
+#    subdirs:
+#    - reflex-dom
+#    - reflex-dom-core
+#  extra-dep: true
+#extra-deps:
+#- bizzlelude-js-1.0.4
+#- constraints-0.9.1
+#- dependent-map-0.2.4.0
+#- ghcjs-dom-0.9.2.0
+#- ghcjs-dom-jsaddle-0.9.2.0
+#- ghcjs-dom-jsffi-0.9.2.0
+#- jsaddle-0.9.4.0
+#- jsaddle-dom-0.9.2.0
+#- jsaddle-warp-0.9.2.0
+#- prim-uniq-0.1.0.1
+#- ref-tf-0.4.0.1
+#- zenc-0.1.1
+#resolver: lts-7.19
+#compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
+
+flags: {}
 packages:
 - location: '.'
 - location:
-    git: https://github.com/reflex-frp/reflex
-    commit: 91299fce0bb2caddfba35af6608df57dd31e3690
-    # Latest develop comment at the time I stole this code
+    git: https://github.com/ghcjs/ghcjs
+    commit: ce7b5736b53eb34ef5b913efdc560c7dafaf0b79
+    subdirs:
+    - lib/ghcjs-prim
   extra-dep: true
 - location:
-    git: https://github.com/hamishmack/reflex-dom
-    commit: d9842742183a800cf1f98f89d42d849d52dd2d67
-    # Latest develop comment at the time I stole this code
+    git: https://github.com/ghcjs/ghcjs-base
+    commit: 43804668a887903d27caada85693b16673283c57
   extra-dep: true
-
+- location:
+    git: https://github.com/reflex-frp/reflex
+    commit: 41c56b605b05ebbe73c845137f076ab76b417f67
+  extra-dep: true
+- location:
+    git: https://github.com/reflex-frp/reflex-dom
+    commit: 9a0a7d9dada8dcc452dc3b3a611a7d022ebd89b6
+    subdirs:
+    - reflex-dom
+    - reflex-dom-core
+  extra-dep: true
 extra-deps:
-  - bizzlelude-js-1.0.4
-  - ghcjs-dom-0.7.0.3
-  - ghcjs-dom-jsaddle-0.7.0.3
-  - ghcjs-dom-jsffi-0.7.0.3
-  - jsaddle-0.7.0.0
-  - jsaddle-dom-0.7.0.3
-  - jsaddle-warp-0.7.0.0
-  - prim-uniq-0.1.0.1
-  - ref-tf-0.4.0.1
-  - zenc-0.1.1
+- bizzlelude-js-0.0.4
+- constraints-0.9.1
+- containers-0.5.7.1
+- dependent-map-0.2.4.0
+- ghcjs-dom-0.9.2.0
+- ghcjs-dom-jsaddle-0.9.2.0
+- ghcjs-dom-jsffi-0.9.2.0
+- hashable-1.2.0.0
+- jsaddle-0.9.4.0
+- jsaddle-dom-0.9.2.0
+- jsaddle-warp-0.9.2.0
+- prim-uniq-0.1.0.1
+- ref-tf-0.4.0.1
+- zenc-0.1.1
+resolver: lts-6.30
+compiler: ghcjs-0.2.0.9006030_ghc-7.10.3
+compiler-check: match-exact
+setup-info:
+  ghcjs:
+    source:
+      ghcjs-0.2.0.9006030_ghc-7.10.3:
+         url: http://ghcjs.tolysz.org/lts-6.30-9006030.tar.gz
+         sha1: 2371e2ffe9e8781808b7a04313e6a0065b64ee51
