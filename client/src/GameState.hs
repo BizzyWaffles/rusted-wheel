@@ -1,19 +1,19 @@
 module GameState(
-  AttributeSet()
-, EntityKind()
-, GameState()
-, Goon()
-, ID()
-, Item()
-, Money()
-, NewsItem()
-, Player()
-, PlayerState()
-, Rating()
-, SkillSet()
-, Task()
-, TaskKind()
-, Transaction()
+  AttributeSet(..)
+, EntityKind(..)
+, GameState(..)
+, Goon(..)
+, ID(..)
+, Item(..)
+, Money(..)
+, NewsItem(..)
+, Player(..)
+, PlayerState(..)
+, Rating(..)
+, SkillSet(..)
+, Task(..)
+, TaskKind(..)
+, Transaction(..)
 ) where
 
 import Bizzlelude
@@ -21,11 +21,11 @@ import Bizzlelude
 import Data.Maybe(Maybe)
 import Data.Set(Set)
 
-newtype ID = ID Int
+newtype ID = ID Int deriving (Show)
 
-newtype Money = Money Int
+newtype Money = Money Int deriving (Show)
 
-newtype Rating = Rating Int
+newtype Rating = Rating Int deriving (Show)
 
 data Item
   = Ring
@@ -35,11 +35,13 @@ data Item
   | Stick
   | StrangeFungus
   | TreeSap
+  deriving (Show)
 
 data EntityKind
   = GoonEntity
   | NPCEntity
   | PlayerEntity
+  deriving (Show)
 
 data TaskKind
   = Counterespionage
@@ -47,6 +49,7 @@ data TaskKind
   | Spy
   | Steal
   | Trade
+  deriving (Show)
 
 data PlayerState
   = PlayerState {
@@ -58,50 +61,48 @@ data PlayerState
 
 data Player
   = Player {
-      id    :: ID
-    , name  :: Text
-    , state :: PlayerState
+      pID    :: ID
+    , pName  :: Text
+    , pState :: PlayerState
     }
   | AnonPlayer {
       anonState :: PlayerState
     }
-
-data AnonPlayer
-  = AnonPlayer {
-      anonState :: PlayerState
-    }
+  deriving (Show)
 
 data Transaction
   = Transaction {
-      to          :: (ID, EntityKind)
-    , from        :: (ID, EntityKind)
-    , amount      :: Money
-    , description :: Text
+      to           :: (ID, EntityKind)
+    , from         :: (ID, EntityKind)
+    , amount       :: Money
+    , tDescription :: Text
     } deriving (Show)
 
 data NewsItem
   = NewsItem {
-      id          :: ID
-    , description :: Text
+      niID          :: ID
+    , niDescription :: Text
     } deriving (Show)
 
-data Task =
+data Task
   = Task {
-      id                   :: ID
+      taskID               :: ID
     , taskType             :: TaskKind
     , effortRequired       :: Double
     , effortPutIn          :: Double
     , currentEffortPerTick :: Double
     }
+  deriving (Show)
 
 data Goon
   = Goon {
-      id         :: ID
-    , name       :: Text
+      goonID     :: ID
+    , goonName   :: Text
     , task       :: Maybe Task
     , attributes :: AttributeSet
     , skills     :: SkillSet
     }
+  deriving (Show)
 
 data AttributeSet
   = AttributeSet {
@@ -110,6 +111,7 @@ data AttributeSet
     , charisma   :: Rating
     , perception :: Rating
     }
+  deriving (Show)
 
 data SkillSet
   = SkillSet {
@@ -119,6 +121,7 @@ data SkillSet
     , steal            :: Rating
     , trade            :: Rating
     }
+  deriving (Show)
 
 data GameState
   = GameState {

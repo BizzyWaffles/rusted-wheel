@@ -1,0 +1,32 @@
+data Event = Increment | Decrement | NoOp
+
+foldp :: forall fx. Event -> BizzyState -> EffModel BizzyState Event fx
+foldp Increment (BizzyState bs) = { state: BizzyState bs { gameState = GameState gState { hourOfDay = gState.hourOfDay + 1 } }, effects: [] }
+  where { gameState: (GameState gState), sendServer } = bs
+foldp Decrement (BizzyState bs) = { state: BizzyState bs { gameState = GameState gState { hourOfDay = gState.hourOfDay - 1 } }, effects: [] }
+  where { gameState: (GameState gState), sendServer } = bs
+foldp NoOp      bs              = { state: bs                                                                                 , effects: [] }
+
+
+
+
+
+main :: Eff _ Unit
+main =
+  do
+    host <- window >>= location >>= hostname
+    WS.init host onConnect
+  where
+    onConnect send =
+      do
+        app <- start
+          { initialState: makeInitialState send
+          , view: (\(BizzyState { gameState }) -> gameState) >>> view
+          , foldp
+          , inputs: []
+          }
+        renderToDOM "#app" app.markup app.input
+        _ <- initCanvas
+        pure unit
+
+onConnect $ \typ args -> socket.send $ Message $ joinWith ":" $ [token, typ] <> args
